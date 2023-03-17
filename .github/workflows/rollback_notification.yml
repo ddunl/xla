@@ -15,7 +15,9 @@
 name: Rollback Notification
 on:
   push:
-    branches: main
+    branches:
+      - main
+      - testpr
 
 jobs:
   rollback-notification:
