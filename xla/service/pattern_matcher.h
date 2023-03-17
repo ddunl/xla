@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_PATTERN_MATCHER_H_
-#define TENSORFLOW_COMPILER_XLA_SERVICE_PATTERN_MATCHER_H_
+#ifndef XLA_SERVICE_PATTERN_MATCHER_H_
+#define XLA_SERVICE_PATTERN_MATCHER_H_
 
 #include <functional>
 #include <ios>
@@ -2254,6 +2254,9 @@ XLA_UNOP_PATTERN(Cos)
 XLA_UNOP_PATTERN(AllReduce)
 XLA_UNOP_PATTERN(AllReduceStart)
 XLA_UNOP_PATTERN(AllReduceDone)
+XLA_UNOP_PATTERN(CollectivePermute)
+XLA_UNOP_PATTERN(CollectivePermuteStart)
+XLA_UNOP_PATTERN(CollectivePermuteDone)
 XLA_UNOP_PATTERN(Exp)
 XLA_UNOP_PATTERN(Fft)
 XLA_UNOP_PATTERN(Floor)
@@ -2603,4 +2606,4 @@ inline auto ConstantEffectiveScalar(HloInstructionType** matched_inst,
 
 #undef EXPLAIN
 #pragma pop_macro("EXPLAIN")
-#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_PATTERN_MATCHER_H_
+#endif  // XLA_SERVICE_PATTERN_MATCHER_H_

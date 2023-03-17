@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_PJRT_PJRT_CLIENT_H_
-#define TENSORFLOW_COMPILER_XLA_PJRT_PJRT_CLIENT_H_
+#ifndef XLA_PJRT_PJRT_CLIENT_H_
+#define XLA_PJRT_PJRT_CLIENT_H_
 
 #include <cstdint>
 #include <functional>
@@ -248,6 +248,16 @@ class PjRtChunk {
   uint8_t* data() { return data_; }
   const uint8_t* data() const { return data_; }
   int64_t size() const { return size_; }
+  std::function<void(void*)> deleter() const { return deleter_; }
+
+  // Release the ownership of the data. Note that this does not free the data;
+  // the caller should copy `data()` and `deleter()` to manage the ownership
+  // before calling `release()`. This PjRtChunk is invalidated after calling.
+  void release() {
+    data_ = nullptr;
+    size_ = 0;
+    deleter_ = nullptr;
+  }
 
  private:
   // The ownership of the bytes pointed to by `data_` is controlled by the
@@ -1321,4 +1331,4 @@ class PjRtLoadedExecutable : public PjRtExecutable {
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_PJRT_PJRT_CLIENT_H_
+#endif  // XLA_PJRT_PJRT_CLIENT_H_

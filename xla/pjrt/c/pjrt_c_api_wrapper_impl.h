@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_PJRT_C_PJRT_C_API_WRAPPER_IMPL_H_
-#define TENSORFLOW_COMPILER_XLA_PJRT_C_PJRT_C_API_WRAPPER_IMPL_H_
+#ifndef XLA_PJRT_C_PJRT_C_API_WRAPPER_IMPL_H_
+#define XLA_PJRT_C_PJRT_C_API_WRAPPER_IMPL_H_
 
 #include <functional>
 #include <memory>
@@ -107,10 +107,6 @@ struct PJRT_SerializedExecutable {
 
 struct PJRT_DeviceTopology {
   std::unique_ptr<xla::PjRtDeviceTopology> topology;
-};
-
-struct PJRT_Chunk {
-  xla::PjRtChunk chunk;
 };
 
 struct PJRT_TransferMetadata {
@@ -209,6 +205,15 @@ PJRT_Error* PJRT_Buffer_ToHostBuffer(PJRT_Buffer_ToHostBuffer_Args* args);
 PJRT_Error* PJRT_Buffer_IsOnCpu(PJRT_Buffer_IsOnCpu_Args* args);
 PJRT_Error* PJRT_Buffer_ReadyEvent(PJRT_Buffer_ReadyEvent_Args* args);
 PJRT_Error* PJRT_Buffer_UnsafePointer(PJRT_Buffer_UnsafePointer_Args* args);
+
+PJRT_Error* PJRT_CopyToDeviceStream_AddChunk(
+    PJRT_CopyToDeviceStream_AddChunk_Args* args);
+PJRT_Error* PJRT_CopyToDeviceStream_TotalBytes(
+    PJRT_CopyToDeviceStream_TotalBytes_Args* args);
+PJRT_Error* PJRT_CopyToDeviceStream_GranuleSize(
+    PJRT_CopyToDeviceStream_GranuleSize_Args* args);
+PJRT_Error* PJRT_CopyToDeviceStream_CurrentBytes(
+    PJRT_CopyToDeviceStream_CurrentBytes_Args* args);
 
 PJRT_Error* PJRT_DeviceTopology_Destroy(PJRT_DeviceTopology_Destroy_Args* args);
 PJRT_Error* PJRT_DeviceTopology_PlatformName(
@@ -346,6 +351,15 @@ constexpr PJRT_Api CreatePjrtApi(
       .PJRT_Buffer_ReadyEvent = pjrt::PJRT_Buffer_ReadyEvent,
       .PJRT_Buffer_UnsafePointer = pjrt::PJRT_Buffer_UnsafePointer,
 
+      .PJRT_CopyToDeviceStream_AddChunk =
+          pjrt::PJRT_CopyToDeviceStream_AddChunk,
+      .PJRT_CopyToDeviceStream_TotalBytes =
+          pjrt::PJRT_CopyToDeviceStream_TotalBytes,
+      .PJRT_CopyToDeviceStream_GranuleSize =
+          pjrt::PJRT_CopyToDeviceStream_GranuleSize,
+      .PJRT_CopyToDeviceStream_CurrentBytes =
+          pjrt::PJRT_CopyToDeviceStream_CurrentBytes,
+
       .PJRT_DeviceTopology_Create = topology_create_fn,
       .PJRT_DeviceTopology_Destroy = pjrt::PJRT_DeviceTopology_Destroy,
       .PJRT_DeviceTopology_PlatformName =
@@ -359,4 +373,4 @@ constexpr PJRT_Api CreatePjrtApi(
 
 }  // namespace pjrt
 
-#endif  // TENSORFLOW_COMPILER_XLA_PJRT_C_PJRT_C_API_WRAPPER_IMPL_H_
+#endif  // XLA_PJRT_C_PJRT_C_API_WRAPPER_IMPL_H_

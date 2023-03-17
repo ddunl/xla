@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_TYPES_H_
-#define TENSORFLOW_COMPILER_XLA_TYPES_H_
+#ifndef XLA_TYPES_H_
+#define XLA_TYPES_H_
 
 #include <complex>
 #include <istream>
@@ -54,10 +54,13 @@ struct i4 {
   explicit operator complex64() const { return complex64(v); }
   explicit operator complex128() const { return complex128(v); }
 
-  i4 operator+(const i4& other) const { return i4((v + other.v) & 0x0F); }
-  i4 operator-(const i4& other) const { return i4((v - other.v) & 0x0F); }
-  i4 operator*(const i4& other) const { return i4((v * other.v) & 0x0F); }
-  i4 operator/(const i4& other) const { return i4((v / other.v) & 0x0F); }
+  i4 operator+(const i4& other) const { return i4((v + other.v)); }
+  i4 operator-(const i4& other) const { return i4((v - other.v)); }
+  i4 operator*(const i4& other) const { return i4((v * other.v)); }
+  i4 operator/(const i4& other) const { return i4((v / other.v)); }
+
+  i4 operator>>(const int amount) const { return i4((v >> amount)); }
+  i4 operator<<(const int amount) const { return i4((v << amount)); }
 
   bool operator==(const i4& other) const { return v == other.v; }
   bool operator!=(const i4& other) const { return v != other.v; }
@@ -166,4 +169,4 @@ class numeric_limits<xla::s4> : public numeric_limits_int4t<xla::s4> {
 // NOLINTEND
 }  // namespace std
 
-#endif  // TENSORFLOW_COMPILER_XLA_TYPES_H_
+#endif  // XLA_TYPES_H_

@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_SPMD_SPMD_PARTITIONER_UTIL_H_
-#define TENSORFLOW_COMPILER_XLA_SERVICE_SPMD_SPMD_PARTITIONER_UTIL_H_
+#ifndef XLA_SERVICE_SPMD_SPMD_PARTITIONER_UTIL_H_
+#define XLA_SERVICE_SPMD_SPMD_PARTITIONER_UTIL_H_
 
 #include <limits>
 #include <memory>
@@ -402,6 +402,11 @@ Shape GetPerGroupBaseShape(
     const hlo_sharding_util::GroupedSharding& grouped_sharding,
     const Shape& original_base_shape);
 
+// Returns the partition id within a group.
+HloInstruction* GetInGroupPartitionId(
+    HloInstruction* partition_id,
+    const std::vector<std::vector<int64_t>>& device_groups, SpmdBuilder* b);
+
 // Creates the nested partitioner state for in-group patitioning.
 PartitionedHlo::PartitioningState CreatePerGroupPartitioningState(
     const PartitionedHlo::PartitioningState& state,
@@ -527,4 +532,4 @@ HloInstruction* PadDataFromWindowReshard(
 }  // namespace spmd
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_SPMD_SPMD_PARTITIONER_UTIL_H_
+#endif  // XLA_SERVICE_SPMD_SPMD_PARTITIONER_UTIL_H_

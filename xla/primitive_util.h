@@ -15,8 +15,8 @@ limitations under the License.
 
 // Utilities for dealing with XLA primitive types.
 
-#ifndef TENSORFLOW_COMPILER_XLA_PRIMITIVE_UTIL_H_
-#define TENSORFLOW_COMPILER_XLA_PRIMITIVE_UTIL_H_
+#ifndef XLA_PRIMITIVE_UTIL_H_
+#define XLA_PRIMITIVE_UTIL_H_
 
 #include <string>
 #include <tuple>
@@ -168,6 +168,10 @@ bool IsSignedIntegralType(PrimitiveType type);
 bool IsUnsignedIntegralType(PrimitiveType type);
 
 bool IsIntegralType(PrimitiveType type);
+
+inline bool IsF8Type(PrimitiveType type) {
+  return type == F8E5M2 || type == F8E4M3FN;
+}
 
 // Returns true if values of the given primitive type are held in array shapes.
 inline constexpr bool IsArrayType(PrimitiveType primitive_type) {
@@ -546,4 +550,4 @@ bool IsCanonicalRepresentation(PrimitiveType type) {
 }  // namespace primitive_util
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_PRIMITIVE_UTIL_H_
+#endif  // XLA_PRIMITIVE_UTIL_H_

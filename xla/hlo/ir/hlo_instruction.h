@@ -18,8 +18,8 @@ limitations under the License.
 // in a platform-aware way by traversing the HLO DAG and emitting a lowered
 // form; e.g. see DfsHloVisitor.
 
-#ifndef TENSORFLOW_COMPILER_XLA_HLO_IR_HLO_INSTRUCTION_H_
-#define TENSORFLOW_COMPILER_XLA_HLO_IR_HLO_INSTRUCTION_H_
+#ifndef XLA_HLO_IR_HLO_INSTRUCTION_H_
+#define XLA_HLO_IR_HLO_INSTRUCTION_H_
 
 #include <functional>
 #include <iosfwd>
@@ -1268,6 +1268,14 @@ class HloInstruction {
   // Drops all control predecessors and successors from this HLO instruction.
   Status DropAllControlDeps();
 
+  // Drops all control predecessors and successors from this HLO instruction,
+  // and the maintain the transitivie control dependencies between
+  // control predecessors and control successors.
+  Status SafelyDropAllControlDependencies();
+
+  // Returns if instruction has any control dependencies.
+  bool HasControlDependencies() const;
+
   // Copies the control predecessors and successors on this HLO instruction to
   // `inst`.  Does not do a deep copy so this makes sense only if `inst` and
   // this HLO are in the same module.
@@ -1858,6 +1866,9 @@ class HloInstruction {
   }
   void set_logical_creation_pass_id(int64_t pass_id) {
     metadata_.set_logical_creation_pass_id(pass_id);
+  }
+  void set_metadata_deduplicated_name(const std::string& deduplicated_name) {
+    metadata_.set_deduplicated_name(deduplicated_name);
   }
   const OpMetadata& metadata() const { return metadata_; }
 
@@ -2468,4 +2479,4 @@ using ConstHloInstructionSet =
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_HLO_IR_HLO_INSTRUCTION_H_
+#endif  // XLA_HLO_IR_HLO_INSTRUCTION_H_

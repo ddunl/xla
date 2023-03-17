@@ -1052,14 +1052,12 @@ cc_library(
         "//xla/hlo/ir:hlo",
         "//xla/hlo/ir:hlo_reachability",
         "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
-        "@tsl//tsl/platform:logging",
     ],
 )
 
@@ -1076,6 +1074,38 @@ xla_cc_test(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@tsl//tsl/lib/core:status_test_util",
+    ],
+)
+
+cc_library(
+    name = "profile_guided_latency_estimator",
+    srcs = ["profile_guided_latency_estimator.cc"],
+    hdrs = ["profile_guided_latency_estimator.h"],
+    deps = [
+        ":latency_hiding_scheduler",
+        "//xla:xla_proto_cc",
+        "//xla/hlo/ir:hlo",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@tsl//tsl/platform:logging",
+    ],
+)
+
+xla_cc_test(
+    name = "profile_guided_latency_estimator_test",
+    srcs = ["profile_guided_latency_estimator_test.cc"],
+    deps = [
+        ":latency_hiding_scheduler",
+        ":profile_guided_latency_estimator",
+        "//xla:xla_proto_cc",
+        "//xla/hlo/ir:hlo",
+        "//xla/tests:hlo_test_base",
+        "//xla/tests:xla_internal_test_main",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/strings",
+        "@tsl//tsl/lib/core:status_test_util",
+        "@tsl//tsl/platform:logging",
+        "@tsl//tsl/platform:protobuf",
+        "@tsl//tsl/platform:statusor",
     ],
 )
 
@@ -1211,7 +1241,6 @@ cc_library(
     deps = [
         ":computation_layout",
         ":dump",
-        "//xla/hlo/ir:hlo",
         ":hlo_execution_profile",
         ":hlo_graph_dumper",
         ":hlo_proto_cc",
@@ -1230,14 +1259,15 @@ cc_library(
         "//xla:statusor",
         "//xla:util",
         "//xla:xla_data_proto_cc",
+        "//xla/hlo/ir:hlo",
         "//xla/stream_executor",
         "//xla/stream_executor:device_description",
         "//xla/stream_executor:device_memory_allocator",
+        "@tsl//tsl/lib/strings:proto_serialization",
         "@tsl//tsl/platform:env",
         "@tsl//tsl/platform:errors",
         "@tsl//tsl/platform:logging",
         "@tsl//tsl/platform:status",
-        "@tsl//tsl/lib/strings:proto_serialization",
     ] + internal_hlo_deps(),
 )
 
@@ -3710,14 +3740,14 @@ cc_library(
         "//xla:types",
         "//xla:util",
         "//xla:xla_data_proto_cc",
-        "@tsl//tsl/platform:errors",
-        "@tsl//tsl/platform:logging",
-        "@tsl//tsl/platform:status",
         "//xla/stream_executor",
         "//xla/stream_executor:platform",
         "//xla/stream_executor/cuda:cuda_platform_id",
         "//xla/stream_executor/host:host_platform_id",
         "//xla/stream_executor/rocm:rocm_platform_id",
+        "@tsl//tsl/platform:errors",
+        "@tsl//tsl/platform:logging",
+        "@tsl//tsl/platform:status",
     ] + if_libtpu([":tpu_computation_placer"]),
     alwayslink = True,  # Contains per-platform computation placer registration
 )
@@ -6913,6 +6943,8 @@ xla_cc_binary(
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Parser",
+        "@stablehlo//:register",
+        "//xla:autotune_results_proto_cc",
         "//xla:debug_options_flags",
         "//xla:statusor",
         "//xla/mlir_hlo",
@@ -6923,8 +6955,6 @@ xla_cc_binary(
         "@tsl//tsl/platform:platform_port",
         "@tsl//tsl/platform:protobuf",
         "@tsl//tsl/util:command_line_flags",
-        "@stablehlo//:register",
-        "//xla:autotune_results_proto_cc",
     ] + if_cuda_is_configured([
         "//xla/service/gpu:executable_proto_cc",
         "//xla/service/gpu:gpu_compiler",

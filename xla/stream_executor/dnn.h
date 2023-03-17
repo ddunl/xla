@@ -19,8 +19,8 @@ limitations under the License.
 // neural net operations; it accommodates implementations such as the cudnn
 // library operations.
 
-#ifndef TENSORFLOW_COMPILER_XLA_STREAM_EXECUTOR_DNN_H_
-#define TENSORFLOW_COMPILER_XLA_STREAM_EXECUTOR_DNN_H_
+#ifndef XLA_STREAM_EXECUTOR_DNN_H_
+#define XLA_STREAM_EXECUTOR_DNN_H_
 
 #include <cstdint>
 #include <functional>
@@ -2143,7 +2143,7 @@ class DnnSupport {
                       const dnn::AlgorithmConfig& algorithm_config,
                       float dropout, uint64_t seed,
                       ScratchAllocator* state_allocator, bool use_padded_io) {
-    return tsl::Status(tsl::error::UNIMPLEMENTED,
+    return tsl::Status(absl::StatusCode::kUnimplemented,
                        "createRnnDescriptor is unimplemented");
   }
 
@@ -2159,7 +2159,7 @@ class DnnSupport {
   virtual tsl::StatusOr<std::unique_ptr<dnn::RnnSequenceTensorDescriptor>>
   createRnnSequenceTensorDescriptor(int max_seq_length, int batch_size,
                                     int data_size, dnn::DataType data_type) {
-    return tsl::Status(tsl::error::UNIMPLEMENTED,
+    return tsl::Status(absl::StatusCode::kUnimplemented,
                        "createRnnSequenceTensorDescriptor is unimplemented");
   }
 
@@ -2168,7 +2168,7 @@ class DnnSupport {
                                     int data_size,
                                     const absl::Span<const int>& seq_lengths,
                                     bool time_major, dnn::DataType data_type) {
-    return tsl::Status(tsl::error::UNIMPLEMENTED,
+    return tsl::Status(absl::StatusCode::kUnimplemented,
                        "createRnnSequenceTensorDescriptor is unimplemented");
   }
 
@@ -2177,7 +2177,7 @@ class DnnSupport {
   virtual tsl::StatusOr<std::unique_ptr<dnn::RnnStateTensorDescriptor>>
   createRnnStateTensorDescriptor(int num_layer, int batch_size, int data_size,
                                  dnn::DataType data_type) {
-    return tsl::Status(tsl::error::UNIMPLEMENTED,
+    return tsl::Status(absl::StatusCode::kUnimplemented,
                        "createRnnStateTensorDescriptor is unimplemented");
   }
 
@@ -2749,4 +2749,4 @@ class DnnSupport {
 }  // namespace dnn
 }  // namespace stream_executor
 
-#endif  // TENSORFLOW_COMPILER_XLA_STREAM_EXECUTOR_DNN_H_
+#endif  // XLA_STREAM_EXECUTOR_DNN_H_

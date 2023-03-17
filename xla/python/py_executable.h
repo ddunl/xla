@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_PYTHON_PY_EXECUTABLE_H_
-#define TENSORFLOW_COMPILER_XLA_PYTHON_PY_EXECUTABLE_H_
+#ifndef XLA_PYTHON_PY_EXECUTABLE_H_
+#define XLA_PYTHON_PY_EXECUTABLE_H_
 
 #include <memory>
 #include <optional>
@@ -75,11 +75,10 @@ class PyExecuteResults {
                    std::vector<tsl::RCReference<ifrt::Array>> ifrt_arrays,
                    int num_computations, PyShardedToken token);
 
-  std::vector<std::vector<PyBuffer::object>>
-  DisassembleIntoSingleDeviceArrays();
+  std::vector<std::vector<PyArray>> DisassembleIntoSingleDeviceArrays();
 
-  std::vector<std::vector<PyBuffer::object>>
-  DisassemblePrefixIntoSingleDeviceArrays(size_t n);
+  std::vector<std::vector<PyArray>> DisassemblePrefixIntoSingleDeviceArrays(
+      size_t n);
 
   std::vector<pybind11::object> ConsumeWithHandlers(
       std::vector<std::variant<const PyArrayResultHandler*, pybind11::object>>
@@ -159,11 +158,10 @@ class PyLoadedExecutable
   // PjRtExecutable::Execute. The result is similarly transposed back into the
   // argid,deviceid format.
   // args is [num_args x num_devices].
-  StatusOr<std::vector<std::vector<PyBuffer::object>>>
-  ExecuteShardedOnLocalDevices(absl::Span<const ExecuteShardedArg> args);
+  StatusOr<std::vector<std::vector<PyArray>>> ExecuteShardedOnLocalDevices(
+      absl::Span<const ExecuteShardedArg> args);
 
-  StatusOr<
-      std::pair<std::vector<std::vector<PyBuffer::object>>, PyShardedToken>>
+  StatusOr<std::pair<std::vector<std::vector<PyArray>>, PyShardedToken>>
   ExecuteShardedOnLocalDevicesWithTokens(
       absl::Span<const ExecuteShardedArg> args);
 
@@ -241,4 +239,4 @@ class PyLoadedExecutable
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_PYTHON_PY_EXECUTABLE_H_
+#endif  // XLA_PYTHON_PY_EXECUTABLE_H_

@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_PJRT_PJRT_C_API_CLIENT_H_
-#define TENSORFLOW_COMPILER_XLA_PJRT_PJRT_C_API_CLIENT_H_
+#ifndef XLA_PJRT_PJRT_C_API_CLIENT_H_
+#define XLA_PJRT_PJRT_C_API_CLIENT_H_
 
 #include <functional>
 #include <memory>
@@ -301,9 +301,7 @@ class PjRtCApiBuffer : public PjRtBuffer {
 
   const Shape& on_device_shape() const override;
 
-  StatusOr<Shape> logical_on_device_shape() override {
-    return Unimplemented("PJRT C API does not support logical_on_device_shape");
-  }
+  StatusOr<Shape> logical_on_device_shape() override;
 
   PjRtDevice* device() const override;
 
@@ -564,6 +562,18 @@ class PjRtCApiDeviceTopology : public PjRtDeviceTopology {
       c_topology_;
 };
 
+class CApiCopyToDeviceStream : public CopyToDeviceStream {
+ public:
+  CApiCopyToDeviceStream(PJRT_CopyToDeviceStream* c_stream,
+                         const PJRT_Api* c_api);
+
+  PjRtFuture<Status> AddChunk(PjRtChunk chunk) override;
+
+ private:
+  PJRT_CopyToDeviceStream* c_stream_;
+  const PJRT_Api* c_api_;
+};
+
 StatusOr<std::unique_ptr<PjRtClient>> GetCApiClient(
     absl::string_view device_type,
     const absl::flat_hash_map<std::string, PjRtValueType>& create_options = {});
@@ -573,4 +583,4 @@ StatusOr<std::unique_ptr<PjRtDeviceTopology>> GetCApiTopology(
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_PJRT_PJRT_C_API_CLIENT_H_
+#endif  // XLA_PJRT_PJRT_C_API_CLIENT_H_

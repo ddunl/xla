@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_LAYOUT_ASSIGNMENT_H_
-#define TENSORFLOW_COMPILER_XLA_SERVICE_LAYOUT_ASSIGNMENT_H_
+#ifndef XLA_SERVICE_LAYOUT_ASSIGNMENT_H_
+#define XLA_SERVICE_LAYOUT_ASSIGNMENT_H_
 
 #include <iosfwd>
 #include <map>
@@ -481,7 +481,7 @@ class LayoutAssignment : public HloModulePass {
 
   // Propagates the memory space defined in the entry computation to the called
   // computations.
-  Status PropagateMemorySpace(HloModule* module);
+  virtual Status PropagateMemorySpace(HloModule* module);
 
   // Chooses a layout of operand `operand_no` of `instruction` that minimizes
   // the cost of `instruction`. `output_layout` is the layout of `instruction`.
@@ -705,4 +705,4 @@ class LayoutAssignment : public HloModulePass {
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_LAYOUT_ASSIGNMENT_H_
+#endif  // XLA_SERVICE_LAYOUT_ASSIGNMENT_H_

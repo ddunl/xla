@@ -71,6 +71,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 
   opts.set_xla_gpu_enable_cudnn_frontend(true);
 
+  // Note: CublasLt will be used for FP8 GEMMs regardless of the value of this
+  // flag.
   opts.set_xla_gpu_enable_cublaslt(false);
 
   // TODO(b/258036887): Remove this flag once CUDA Graphs are fully supported.
@@ -110,7 +112,7 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
       DebugOptions::PARTITIONING_ALGORITHM_NOOP);
 
   opts.set_xla_gpu_enable_triton_gemm(true);
-  opts.set_xla_gpu_enable_cudnn_int8x32_convolution_reordering(false);
+  opts.set_xla_gpu_enable_cudnn_int8x32_convolution_reordering(true);
   opts.set_xla_gpu_triton_gemm_any(false);
   return opts;
 }
@@ -844,6 +846,11 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       bool_setter_for(&DebugOptions::set_xla_cpu_enable_mlir_tiling_and_fusion),
       debug_options->xla_cpu_enable_mlir_tiling_and_fusion(),
       "Enable MLIR tiling and fusion."));
+  flag_list->push_back(tsl::Flag(
+      "xla_cpu_enable_mlir_fusion_outlining",
+      bool_setter_for(&DebugOptions::set_xla_cpu_enable_mlir_fusion_outlining),
+      debug_options->xla_cpu_enable_mlir_fusion_outlining(),
+      "Enable MLIR fusion outlining (to improve compile time)."));
   flag_list->push_back(tsl::Flag(
       "xla_cpu_enable_experimental_deallocation",
       bool_setter_for(

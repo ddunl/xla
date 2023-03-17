@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_PJRT_TFRT_CPU_PJRT_CLIENT_H_
-#define TENSORFLOW_COMPILER_XLA_PJRT_TFRT_CPU_PJRT_CLIENT_H_
+#ifndef XLA_PJRT_TFRT_CPU_PJRT_CLIENT_H_
+#define XLA_PJRT_TFRT_CPU_PJRT_CLIENT_H_
 
 #include <functional>
 #include <memory>
@@ -351,9 +351,6 @@ class TfrtCpuBuffer final : public PjRtBuffer {
            on_device_shape_.tuple_shapes_size() == 0;
   }
 
-  StatusOr<tfrt::AsyncValueRef<Literal>> CopyToHostAsyncInternal(
-      bool discard_cached_copy, std::optional<xla::Layout> layout);
-
   // Acquires the device buffer for shared read-only usages, and it also adds
   // the `usage_event` to it. Any donation event in the future is expected to be
   // serialized after all the usage events added through this method. Returns
@@ -634,4 +631,4 @@ StatusOr<std::unique_ptr<PjRtClient>> GetTfrtCpuClient(bool asynchronous,
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_PJRT_TFRT_CPU_PJRT_CLIENT_H_
+#endif  // XLA_PJRT_TFRT_CPU_PJRT_CLIENT_H_

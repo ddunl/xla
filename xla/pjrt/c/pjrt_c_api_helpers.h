@@ -13,14 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_PJRT_C_PJRT_C_API_HELPERS_H_
-#define TENSORFLOW_COMPILER_XLA_PJRT_C_PJRT_C_API_HELPERS_H_
+#ifndef XLA_PJRT_C_PJRT_C_API_HELPERS_H_
+#define XLA_PJRT_C_PJRT_C_API_HELPERS_H_
 
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "xla/pjrt/c/pjrt_c_api.h"
 #include "xla/pjrt/pjrt_client.h"
 #include "xla/pjrt/pjrt_future.h"
@@ -99,7 +100,7 @@ xla::Status PjrtErrorToStatus(const PJRT_Error* error, const PJRT_Api* api);
 absl::StatusCode PjrtErrorToStatusCode(const PJRT_Error* error,
                                        const PJRT_Api* api);
 
-PJRT_Error_Code StatusCodeToPjrtErrorCode(tsl::error::Code code);
+PJRT_Error_Code StatusCodeToPjrtErrorCode(absl::StatusCode code);
 
 // Conversion helper from xla::PrimitiveType to PJRT_Buffer_Type.
 PJRT_Buffer_Type ConvertToPjRtBufferType(xla::PrimitiveType type);
@@ -147,6 +148,13 @@ xla::Status CheckMatchingStructSizes(absl::string_view struct_name,
 
 absl::string_view GetPlatformVersion(PJRT_Client* client, const PJRT_Api* api);
 
+// Releases `chunk`.
+PJRT_Chunk ConvertFromCppChunk(xla::PjRtChunk chunk);
+
+// Returned PjRtChunk takes ownership of data in PJRT_Chunk (i.e. chunk.deleter
+// should not be called).
+xla::PjRtChunk ConvertToCppChunk(const PJRT_Chunk& chunk);
+
 }  // namespace pjrt
 
-#endif  // TENSORFLOW_COMPILER_XLA_PJRT_C_PJRT_C_API_HELPERS_H_
+#endif  // XLA_PJRT_C_PJRT_C_API_HELPERS_H_

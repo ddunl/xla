@@ -15,8 +15,8 @@ limitations under the License.
 
 // All HloInstruction subclasses are put in this file.
 
-#ifndef TENSORFLOW_COMPILER_XLA_HLO_IR_HLO_INSTRUCTIONS_H_
-#define TENSORFLOW_COMPILER_XLA_HLO_IR_HLO_INSTRUCTIONS_H_
+#ifndef XLA_HLO_IR_HLO_INSTRUCTIONS_H_
+#define XLA_HLO_IR_HLO_INSTRUCTIONS_H_
 
 #include <functional>
 #include <memory>
@@ -1789,16 +1789,10 @@ class HloSelectAndScatterInstruction : public HloInstruction {
   }
 
   void set_select(HloComputation* computation) {
-    // Don't allow changing the computation for fused instructions so we don't
-    // have to recompute called_instructions for the entire fusion instruction.
-    CHECK(!IsFused());
     set_called_computation(kSelectComputationIndex, computation);
   }
 
   void set_scatter(HloComputation* computation) {
-    // Don't allow changing the computation for fused instructions so we don't
-    // have to recompute called_instructions for the entire fusion instruction.
-    CHECK(!IsFused());
     set_called_computation(kScatterComputationIndex, computation);
   }
   // Returns a serialized representation of this instruction.
@@ -2470,4 +2464,4 @@ class HloRngBitGeneratorInstruction : public HloInstruction {
 
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_HLO_IR_HLO_INSTRUCTIONS_H_
+#endif  // XLA_HLO_IR_HLO_INSTRUCTIONS_H_

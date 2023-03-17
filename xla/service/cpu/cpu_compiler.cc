@@ -335,6 +335,8 @@ runtime::JitExecutable::Options GetXlaRuntimeJitExecutableOptions(
     HloXlaRuntimePipelineOptions options;
     options.enable_tiling_and_fusion =
         GetDebugOptionsFromFlags().xla_cpu_enable_mlir_tiling_and_fusion();
+    options.enable_fusion_outlining =
+        GetDebugOptionsFromFlags().xla_cpu_enable_mlir_fusion_outlining();
     options.cpu_name = llvm::sys::getHostCPUName();
     Status status = CreateHloXlaRuntimePipeline(passes, options);
     if (!status.ok()) {
@@ -1059,6 +1061,8 @@ Status LowerMLIRModule(HloModule* module, mlir::ModuleOp mlir_module,
   HloXlaRuntimePipelineOptions options;
   options.enable_tiling_and_fusion =
       GetDebugOptionsFromFlags().xla_cpu_enable_mlir_tiling_and_fusion();
+  options.enable_fusion_outlining =
+      GetDebugOptionsFromFlags().xla_cpu_enable_mlir_fusion_outlining();
   options.sparse_bufferization = false;
   options.outline_with_xla_framework = true;
   options.experimental_deallocation =
@@ -1119,7 +1123,7 @@ StatusOr<mlir::OwningOpRef<mlir::ModuleOp>> createMLIRModule(
   auto result_mapping = builder.getI32IntegerAttr(output_index);
   mlir_module->walk([&](mlir::func::FuncOp f) {
     if (f.getSymName() == "main") {
-      for (auto& p : llvm::enumerate(operand_mapping)) {
+      for (const auto& p : llvm::enumerate(operand_mapping)) {
         f.setArgAttr(p.index(), "xla_framework.input_mapping", p.value().first);
         if (export_mapping != nullptr) {
           auto index_attr = p.value().first.dyn_cast<mlir::IntegerAttr>();

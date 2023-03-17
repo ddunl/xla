@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_HLO_UTILS_HLO_SHARDING_UTIL_H_
-#define TENSORFLOW_COMPILER_XLA_HLO_UTILS_HLO_SHARDING_UTIL_H_
+#ifndef XLA_HLO_UTILS_HLO_SHARDING_UTIL_H_
+#define XLA_HLO_UTILS_HLO_SHARDING_UTIL_H_
 
 #include <cstdint>
 #include <map>
@@ -363,6 +363,11 @@ GroupedSharding GroupShardingOnDims(const HloSharding& sharding,
                                     absl::Span<const int64_t> group_dims,
                                     bool subgroup_manual = false);
 
+// Same as above, but exclude group dims instead.
+GroupedSharding GroupShardingOnAllDimsExcept(
+    const HloSharding& sharding, absl::Span<const int64_t> non_group_dims,
+    bool subgroup_manual = false);
+
 // Creates a GroupedSharding by trying to group on partially replicated
 // dimensions, otherwise replicate it.
 GroupedSharding GroupShardingOnReplicatedDim(const HloSharding& sharding,
@@ -418,4 +423,4 @@ bool IsSortOperandShardingMovable(const HloInstruction* sort_operand,
 }  // namespace hlo_sharding_util
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_HLO_UTILS_HLO_SHARDING_UTIL_H_
+#endif  // XLA_HLO_UTILS_HLO_SHARDING_UTIL_H_

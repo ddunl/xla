@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_CPU_HLO_XLA_RUNTIME_PIPELINE_H_
-#define TENSORFLOW_COMPILER_XLA_SERVICE_CPU_HLO_XLA_RUNTIME_PIPELINE_H_
+#ifndef XLA_SERVICE_CPU_HLO_XLA_RUNTIME_PIPELINE_H_
+#define XLA_SERVICE_CPU_HLO_XLA_RUNTIME_PIPELINE_H_
 
 #include <string>
 
@@ -30,6 +30,7 @@ namespace cpu {
 
 struct HloXlaRuntimePipelineOptions {
   bool enable_tiling_and_fusion = false;
+  bool enable_fusion_outlining = false;
   bool sparse_bufferization = true;
   bool outline_with_xla_framework = false;
   bool experimental_deallocation = false;
@@ -47,4 +48,4 @@ void RegisterHloXlaRuntimePipelineDialects(mlir::DialectRegistry& dialects);
 }  // namespace cpu
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_CPU_HLO_XLA_RUNTIME_PIPELINE_H_
+#endif  // XLA_SERVICE_CPU_HLO_XLA_RUNTIME_PIPELINE_H_

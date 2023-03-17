@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_CPU_CPU_LAYOUT_ASSIGNMENT_H_
-#define TENSORFLOW_COMPILER_XLA_SERVICE_CPU_CPU_LAYOUT_ASSIGNMENT_H_
+#ifndef XLA_SERVICE_CPU_CPU_LAYOUT_ASSIGNMENT_H_
+#define XLA_SERVICE_CPU_CPU_LAYOUT_ASSIGNMENT_H_
 
 #include "xla/service/computation_layout.h"
 #include "xla/service/cpu/target_machine_features.h"
@@ -38,6 +38,9 @@ class CpuLayoutAssignment : public LayoutAssignment {
 
  protected:
   Status AddBackendConstraints(LayoutConstraints* constraints) override;
+  // The CPU backend does not use memory spaces, so there is no need to
+  // propagate them.
+  Status PropagateMemorySpace(HloModule* module) override { return OkStatus(); }
 
   const TargetMachineFeatures& target_machine_features_;
 };
@@ -45,4 +48,4 @@ class CpuLayoutAssignment : public LayoutAssignment {
 }  // namespace cpu
 }  // namespace xla
 
-#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_CPU_CPU_LAYOUT_ASSIGNMENT_H_
+#endif  // XLA_SERVICE_CPU_CPU_LAYOUT_ASSIGNMENT_H_
