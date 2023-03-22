@@ -25,7 +25,7 @@ from typing import Generator, Optional, Sequence
 
 def call_gh_api(endpoint: str, *, http_method: str = "GET", **kwargs):
   # Just want to flatten the list.... why is it so ugly
-  fields = itertools.chain(*[("-f", f"{k}='{v}'") for k, v in kwargs.items()])
+  fields = itertools.chain(*[("-f", f"{k}={v}") for k, v in kwargs.items()])
 
   proc = subprocess.run(
       ["gh", "api", "--method", http_method, endpoint, *fields],
@@ -44,14 +44,14 @@ def get_reverted_shas(message: str) -> list[str]:
   return shas
 
 
-def get_associated_prs(shas: Sequence[str]) -> Generator[tuple[str, int], None, None]:
+def get_associated_prs(shas: Sequence[str]) -> Generator[tuple[str, str], None, None]:
   # Necesary because of copybara
   for sha in shas:
     regex = re.compile("PR #(\\d+)")
     response = call_gh_api(f"repos/ddunl/xla/commits/{sha}")
     message = response["commit"]["message"]
     if maybe_match := regex.match(message):
-      pr_number = int(maybe_match.group(1))
+      pr_number = maybe_match.group(1)
       logging.info("Found PR #%s associated with sha %", pr_number, sha)
       yield sha, pr_number
 
