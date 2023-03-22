@@ -27,7 +27,7 @@ def call_gh_api(endpoint: str, *, http_method: str = "GET", **kwargs):
   # Just want to flatten the list.... why is it so ugly
   fields = itertools.chain(*[("-f", f"{k}='{v}'") for k, v in kwargs.items()])
 
-  subprocess.run(
+  proc = subprocess.run(
       ["gh", "api", "--method", http_method, endpoint, *fields],
         capture_output=True,
         check=True,
