@@ -25,14 +25,18 @@ from typing import Generator, Optional, Sequence
 
 def call_gh_api(endpoint: str, *, http_method: str = "GET", **kwargs):
   # Just want to flatten the list.... why is it so ugly
-  fields = itertools.chain(*[("-f", f"{k}=\"{v}\"") for k, v in kwargs.items()])
+  fields = itertools.chain(*[("-f", f"{k}={v}") for k, v in kwargs.items()])
 
-  proc = subprocess.run(
-      ["gh", "api", "--method", http_method, endpoint, *fields],
-        capture_output=True,
-        check=True,
-        text=True,
-  )
+  try:
+    proc = subprocess.run(
+        ["gh", "api", "--method", http_method, endpoint, *fields],
+          capture_output=True,
+          check=True,
+          text=True,
+    )
+  except subprocess.CalledProcessError as e:
+    logging.error("Failed subprocess stderr: %s", e.stderr)
+    raise e
 
   return json.loads(proc.stdout)
 
