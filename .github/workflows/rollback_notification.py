@@ -28,7 +28,7 @@ def call_gh_api(endpoint: str, *, http_method: str = "GET", **kwargs):
   fields = itertools.chain(*[("-f", f"{k}='{v}'") for k, v in kwargs.items()])
 
   subprocess.run(
-      ["gh", "api", "--method", http_method, *fields],
+      ["gh", "api", "--method", http_method, endpoint, *fields],
         capture_output=True,
         check=True,
         text=True,
