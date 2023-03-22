@@ -51,7 +51,7 @@ def get_associated_prs(shas: Sequence[str]) -> Generator[tuple[str, int], None, 
     response = call_gh_api(f"repos/ddunl/xla/commits/{sha}")
     message = response["commit"]["message"]
     if maybe_match := regex.match(message):
-      pr_number = int(maybe_match.group())
+      pr_number = int(maybe_match.group(1))
       logging.info("Found PR #%s associated with sha %", pr_number, sha)
       yield sha, pr_number
 
