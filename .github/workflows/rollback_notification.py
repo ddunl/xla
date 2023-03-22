@@ -41,6 +41,7 @@ def get_reverted_shas(message: str) -> list[str]:
   regex = re.compile("[Rr]everts ([0-9a-f]{5,40})")
   shas = regex.findall(message)
   logging.info("Found shas reverted in this commit: %s", shas)
+  return shas
 
 
 def get_associated_prs(shas: Sequence[str]) -> Generator[tuple[str, int], None, None]:
