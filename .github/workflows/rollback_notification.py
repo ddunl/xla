@@ -68,7 +68,7 @@ def write_pr_comment_and_reopen(sha: str, pr_number: int) -> None:
       http_method="POST", body=comment_body)
 
   # reopen PR
-  call_gh_api(f"/repos/ddunl/xla/issues/{pr_number}", http_method="POST", state="open")
+  call_gh_api(f"/repos/ddunl/xla/issues/{pr_number}", http_method="POST", state="'open'")
 
 
 def main():
