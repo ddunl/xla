@@ -16,7 +16,7 @@
 import dataclasses
 import json
 import requests
-from typing import Any
+from typing import Any, Optional
 
 JSON = dict[str, Any]
 
