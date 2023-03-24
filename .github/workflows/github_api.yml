@@ -23,10 +23,14 @@ on:
 
 jobs:
   check-contents:
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-22.04
     defaults:
       run:
         shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
     timeout-minutes: 1
     steps:
       - name: "Checking out repository"

@@ -51,10 +51,10 @@ class GitHubAPI:
 
 
 if __name__ == "__main__":
-  gh_api = GitHubAPI()
+  gh_api = GitHubAPI(os.getenv("GH_TOKEN"))
   r = gh_api.get_commit_from_hash("openxla/xla", "c560e8")
   print(r.json())
-  r = gh_api.write_issue_comment("ddunl/xla", 2, "hello!")
+  r = gh_api.write_issue_comment("ddunl/xla", 2, "hello from github API!")
   print(r.json())
 
 
