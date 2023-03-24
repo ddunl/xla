@@ -37,7 +37,7 @@ class GitHubAPI:
 
   def write_issue_comment(self, repo: str, issue_number: int, comment: str) -> requests.Response:
     endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}/comments"
-    return self._session.post(endpoint, data={"body": comment})
+    return self._session.post(endpoint, json={"body": comment})
 
 
   def set_issue_status(self, repo: str, issue_number: int, status: str) -> requests.Response:
