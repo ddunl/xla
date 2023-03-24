@@ -37,7 +37,7 @@ class GitHubAPI:
 
   def write_issue_comment(self, repo: str, issue_number: int, comment: str) -> requests.Response:
     endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}/comments"
-    return self._session.get(endpoint)
+    return self._session.post(endpoint, data={"body": comment})
 
 
   def set_issue_status(self, repo: str, issue_number: int, status: str) -> requests.Response:
@@ -53,6 +53,8 @@ class GitHubAPI:
 if __name__ == "__main__":
   gh_api = GitHubAPI()
   r = gh_api.get_commit_from_hash("openxla/xla", "c560e8")
+  print(r.json())
+  r = gh_api.write_issue_comment("ddunl/xla", 2, "hello!")
   print(r.json())
 
 
