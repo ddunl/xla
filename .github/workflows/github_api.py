@@ -25,7 +25,7 @@ class GitHubAPI:
   _BASE_URL = "https://api.github.com"
   def __init__(self, token: Optional[str] = None):
     self._session = requests.Session()
-    self._session_headers["Accept"] = "application/vnd.github+json"
+    self._session.headers["Accept"] = "application/vnd.github+json"
     if token:
       self._session.headers["Authorization"] = f"token {token}"
 
