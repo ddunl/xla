@@ -51,7 +51,7 @@ class GitHubAPI:
 
 if __name__ == "__main__":
   gh_api = GitHubAPI()
-  r = get_commit_from_hash("openxla/xla", "c560e8")
+  r = gh_api.get_commit_from_hash("openxla/xla", "c560e8")
   print(r.json())
 
 
