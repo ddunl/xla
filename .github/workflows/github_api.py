@@ -51,6 +51,7 @@ class GitHubAPI:
 
 
 if __name__ == "__main__":
+  import os
   gh_api = GitHubAPI(os.getenv("GH_TOKEN"))
   r = gh_api.get_commit_from_hash("openxla/xla", "c560e8")
   print(r.json())
