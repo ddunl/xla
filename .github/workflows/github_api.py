@@ -35,14 +35,14 @@ class GitHubAPI:
     return self._session.get(endpoint)
 
 
-  def write_issue_comment(self, repo: str, issue_number: int, comment: str) -> requests.Response:
+  def write_issue_comment(self, repo: str, issue_number: int, body: str) -> requests.Response:
     endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}/comments"
-    return self._session.post(endpoint, json={"body": comment})
+    return self._session.post(endpoint, json={"body": body})
 
 
   def set_issue_status(self, repo: str, issue_number: int, status: str) -> requests.Response:
     endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}"
-    return self._session.get(endpoint)
+    return self._session.post(endpoint, json={"status": status})
 
 
 
@@ -56,6 +56,8 @@ if __name__ == "__main__":
   r = gh_api.get_commit_from_hash("openxla/xla", "c560e8")
   print(r.json())
   r = gh_api.write_issue_comment("ddunl/xla", 2, "hello from github API!")
+  print(r.json())
+  r = gh_api.set_issue_status("ddunl/xla", 2, "open")
   print(r.json())
 
 
