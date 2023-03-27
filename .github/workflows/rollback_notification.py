@@ -32,6 +32,7 @@ def get_reverted_commit_hashes(message: str) -> list[str]:
   Returns:
     A list of SHAs as strings.
   """
+  print(f"Head commit message: {message}")
   regex = re.compile(r"reverts ([0-9a-f]{5,40})", flags=re.IGNORECASE)
   commit_hashes = regex.findall(message)
   print(f"Found commit hashes reverted in this commit: {commit_hashes}")
