@@ -23,7 +23,7 @@ import requests
 class GitHubAPI:
   """Wraps the GitHub REST API."""
 
-  _BASE_URL = "api.github.com"
+  _BASE_URL = "https://api.github.com"
 
   def __init__(self, token: Optional[str] = None):
     self._session = requests.Session()
