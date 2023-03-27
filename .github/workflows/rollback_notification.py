@@ -15,7 +15,6 @@
 """Notifies PR authors of rollbacks on committed PRs."""
 import itertools
 import json
-import logging
 import os
 import re
 import subprocess
@@ -35,7 +34,7 @@ def get_reverted_commit_hashes(message: str) -> list[str]:
   """
   regex = re.compile(r"reverts ([0-9a-f]{5,40})", flags=re.IGNORECASE)
   commit_hashes = regex.findall(message)
-  logging.info("Found commit hashes reverted in this commit: %s", commit_hashes)
+  print(f"Found commit hashes reverted in this commit: {commit_hashes}")
   return commit_hashes
 
 
@@ -57,9 +56,7 @@ def get_associated_prs(
     message = response.json()["commit"]["message"]
     if maybe_match := regex.match(message):
       pr_number = maybe_match.group(1)
-      logging.info(
-          "Found PR #%s associated with commit_hash %s", pr_number, commit_hash
-      )
+      print("Found PR #{pr_number} associated with commit hash {commit_hash}")
       yield commit_hash, pr_number
 
 
