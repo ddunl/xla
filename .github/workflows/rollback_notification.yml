@@ -16,7 +16,7 @@ name: Rollback Notification
 on:
   push:
     branches:
-      - main
+      - ghapi
 
 jobs:
   rollback-notification:

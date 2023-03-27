@@ -13,16 +13,18 @@
 # limitations under the License.
 # ============================================================================
 """Provides a Python interface to various parts of the GitHub API."""
-import dataclasses
 import json
-import requests
+import types
 from typing import Any, Optional
 
-JSON = dict[str, Any]
+import requests
 
 
 class GitHubAPI:
+  """Wraps the GitHub REST API."""
+
   _BASE_URL = "https://api.github.com"
+
   def __init__(self, token: Optional[str] = None):
     self._session = requests.Session()
     self._session.headers["Accept"] = "application/vnd.github+json"
@@ -30,41 +32,76 @@ class GitHubAPI:
       self._session.headers["Authorization"] = f"token {token}"
 
 
-  def get_commit_from_hash(self, repo: str, commit_sha: str) -> requests.Response:
-    endpoint = f"{self._BASE_URL}/repos/{repo}/commits/{commit_sha}"
-    return self._session.get(endpoint)
+  def _make_request(self, verb: str, endpoint: str, **kwargs: dict[str, Any]) -> requests.Response:
+    """Helper method to make a request and raise an HTTPError if one occurred.
+
+    Arguments:
+      verb: The HTTP verb to use
+      endpoint: The endpoint to make the request to
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
+    res = self._session.request(verb, self._BASE_URL + endpoint, json=kwargs)
+    res.raise_for_status()
+    return res.json()
+
+
+  def get_commit(self, repo: str, commit_id: str) -> requests.Response:
+    """Gets a commit by it's SHA-1 hash.
+    https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#get-a-commit
+
+    Arguments:
+      repo: a string of the form `owner/repo_name`, e.g. openxla/xla.
+      commit_hash: a string describing the commit to get, e.g. `deadbeef` or
+        `HEAD`.
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
+    endpoint = f"{self._BASE_URL}/repos/{repo}/commits/{commit_id}"
+    return self._make_request("GET", endpoint)
 
 
   def write_issue_comment(self, repo: str, issue_number: int, body: str) -> requests.Response:
+    """Writes a comment on an issue (or PR).
+    https://docs.github.com/en/rest/issues/comments?apiVersion=2022-11-28#create-an-issue-comment
+
+    Arguments:
+      repo: a string of the form `owner/repo_name`, e.g. openxla/xla
+      issue_number: the issue (or PR) to comment on
+      body: the body of the comment
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
     endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}/comments"
-    return self._session.post(endpoint, json={"body": body})
+    return self._make_request("POST", endpoint, body=body)
 
 
   def set_issue_status(self, repo: str, issue_number: int, status: str) -> requests.Response:
+    """Sets the status of an issue (or PR).
+    https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#update-an-issue
+
+    Arguments:
+      repo: a string of the form `owner/repo_name`, e.g. openxla/xla
+      issue_number: the issue (or PR) to set the status of
+      status: the status to set
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
     endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}"
-    return self._session.post(endpoint, json={"status": status})
-
-
-
-
-
-
-
-if __name__ == "__main__":
-  import os
-  gh_api = GitHubAPI(os.getenv("GH_TOKEN"))
-  r = gh_api.get_commit_from_hash("openxla/xla", "c560e8")
-  print(r.json())
-  r = gh_api.write_issue_comment("ddunl/xla", 2, "hello from github API!")
-  print(r.json())
-  r = gh_api.set_issue_status("ddunl/xla", 2, "open")
-  print(r.json())
-
-
-
-
-
-
-
-
-
+    return self._make_request("POST", endpoint, status=status)
