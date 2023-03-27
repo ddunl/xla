@@ -65,7 +65,7 @@ class GitHubAPI:
     Raises:
       requests.exceptions.HTTPError
     """
-    endpoint = f"{self._BASE_URL}/repos/{repo}/commits/{commit_id}"
+    endpoint = f"/repos/{repo}/commits/{commit_id}"
     return self._make_request("GET", endpoint)
 
 
@@ -84,7 +84,7 @@ class GitHubAPI:
     Raises:
       requests.exceptions.HTTPError
     """
-    endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}/comments"
+    endpoint = f"/repos/{repo}/issues/{issue_number}/comments"
     return self._make_request("POST", endpoint, body=body)
 
 
@@ -103,5 +103,5 @@ class GitHubAPI:
     Raises:
       requests.exceptions.HTTPError
     """
-    endpoint = f"{self._BASE_URL}/repos/{repo}/issues/{issue_number}"
+    endpoint = f"/repos/{repo}/issues/{issue_number}"
     return self._make_request("POST", endpoint, status=status)
