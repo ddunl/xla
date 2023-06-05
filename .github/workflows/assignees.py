@@ -25,7 +25,7 @@ def add_assignees(api: github_api.GitHubAPI, number: int) -> None:
     api: API instance to use for API calls
     number: the number of the issue/PR
   """
-  issue_info = api.get_issue("openxla/xla", number)
+  issue_info = api.get_issue("ddunl/xla", number)
   author = api.get_user(issue_info["user"]["login"])
   _, domain = author["email"].split("@")
 
@@ -47,7 +47,7 @@ def maybe_run_ci(api: github_api.GitHubAPI, number: int) -> None:
     api: API instance to use for API calls
     number: the number of the issue/PR
   """
-  issue_info = api.get_issue("openxla/xla", number)
+  issue_info = api.get_issue("ddunl/xla", number)
   if "pull_request" not in issue_info:
     # Github calls both PRs and Issues issues, so we need to check if we have a
     # PR before adding the label that triggers CI.
@@ -66,7 +66,7 @@ def maybe_run_ci(api: github_api.GitHubAPI, number: int) -> None:
   ]
 
   if domain in partner_domains:
-    api.add_issue_labels("openxla/xla", number, ["kokoro:force-run"])
+    api.add_issue_labels("ddunl/xla", number, ["kokoro:force-run"])
 
 
 def main():
