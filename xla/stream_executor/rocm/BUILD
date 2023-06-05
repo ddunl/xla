@@ -6,13 +6,13 @@ load(
     "//xla/stream_executor:build_defs.bzl",
     "stream_executor_friends",
 )
-load("@tsl//tsl:tsl.bzl", "tsl_copts")
+load("@tsl//tsl:tsl.bzl", "set_external_visibility", "tsl_copts")
 load("@local_config_rocm//rocm:build_defs.bzl", "if_rocm_is_configured", "rocm_copts")
 load("@tsl//tsl/platform:build_config_root.bzl", "if_static")
 
 package(
     # copybara:uncomment default_applicable_licenses = ["//tensorflow:license"],
-    default_visibility = [":friends"],
+    default_visibility = set_external_visibility([":friends"]),
     licenses = ["notice"],
 )
 
@@ -85,6 +85,7 @@ cc_library(
 cc_library(
     name = "rocm_gpu_executor",
     srcs = if_rocm_is_configured(["rocm_gpu_executor.cc"]),
+    hdrs = if_rocm_is_configured(["rocm_gpu_executor.h"]),
     deps = if_rocm_is_configured([
         ":rocm_diagnostics",
         ":rocm_driver",
@@ -108,6 +109,18 @@ cc_library(
         "@tsl//tsl/platform:env",
     ]),
     alwayslink = True,
+)
+
+cc_library(
+    name = "rocm_gpu_executor_header",
+    textual_hdrs = if_rocm_is_configured(["rocm_gpu_executor.h"]),
+    visibility = ["//visibility:public"],
+    deps = if_rocm_is_configured([
+        ":rocm_kernel",
+        "//xla/stream_executor:event",
+        "//xla/stream_executor/gpu:gpu_executor_header",
+        "//xla/stream_executor/platform",
+    ]),
 )
 
 cc_library(
@@ -150,6 +163,13 @@ cc_library(
 cc_library(
     name = "rocblas_if_static",
     deps = if_static([
+        ":rocblas_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "rocblas_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:rocblas",
     ]),
 )
@@ -205,6 +225,13 @@ cc_library(
 cc_library(
     name = "hipfft_if_static",
     deps = if_static([
+        ":hipfft_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "hipfft_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:hipfft",
     ]),
 )
@@ -237,6 +264,13 @@ cc_library(
 cc_library(
     name = "miopen_if_static",
     deps = if_static([
+        ":miopen_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "miopen_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:miopen",
     ]),
 )
@@ -267,6 +301,7 @@ cc_library(
         "//xla/stream_executor/gpu:gpu_activation_header",
         "//xla/stream_executor/gpu:gpu_stream_header",
         "//xla/stream_executor/gpu:gpu_timer_header",
+        "//xla/stream_executor/gpu:gpu_types_header",
         "//xla/stream_executor/platform",
         "//xla/stream_executor/platform:dso_loader",
         "@com_google_absl//absl/algorithm:container",
@@ -283,6 +318,13 @@ cc_library(
 cc_library(
     name = "hiprand_if_static",
     deps = if_static([
+        ":hiprand_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "hiprand_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:hiprand",
     ]),
 )
@@ -314,6 +356,13 @@ cc_library(
 cc_library(
     name = "hipsparse_if_static",
     deps = if_static([
+        ":hipsparse_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "hipsparse_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:hipsparse",
     ]),
 )
@@ -337,6 +386,13 @@ cc_library(
 cc_library(
     name = "rocsolver_if_static",
     deps = if_static([
+        ":rocsolver_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "rocsolver_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:rocsolver",
     ]),
 )
@@ -360,6 +416,13 @@ cc_library(
 cc_library(
     name = "hipsolver_if_static",
     deps = if_static([
+        ":hipsolver_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "hipsolver_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:hipsolver",
     ]),
 )
@@ -383,6 +446,13 @@ cc_library(
 cc_library(
     name = "roctracer_if_static",
     deps = if_static([
+        ":roctracer_if_rocm_configured",
+    ]),
+)
+
+cc_library(
+    name = "roctracer_if_rocm_configured",
+    deps = if_rocm_is_configured([
         "@local_config_rocm//rocm:roctracer",
     ]),
 )

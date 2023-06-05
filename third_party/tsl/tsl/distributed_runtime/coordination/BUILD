@@ -1,12 +1,12 @@
 load("//tsl/platform:rules_cc.bzl", "cc_library")
 load("//tsl/platform:build_config.bzl", "tf_proto_library", "tsl_cc_test")
-load("//tsl:tsl.bzl", "if_oss", "tsl_gpu_library")
+load("//tsl:tsl.bzl", "if_oss", "set_external_visibility", "tsl_gpu_library")
 
 package(
     # copybara:uncomment default_applicable_licenses = ["//tensorflow:license"],
-    default_visibility = [
+    default_visibility = set_external_visibility([
         "//tsl:internal",
-    ],
+    ]),
     licenses = ["notice"],
 )
 
@@ -106,6 +106,7 @@ tsl_cc_test(
     deps = [
         ":coordination_client",
         ":coordination_service",
+        ":coordination_service_error_util",
         ":coordination_service_impl",
         ":test_device_proto_cc",
         "//tsl/distributed_runtime:call_options",
@@ -121,6 +122,7 @@ tsl_cc_test(
         "//tsl/platform:types",
         "//tsl/protobuf:coordination_config_proto_cc",
         "//tsl/protobuf:coordination_service_proto_cc",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
@@ -147,6 +149,7 @@ tsl_gpu_library(
         "//tsl/protobuf:coordination_config_proto_cc",
         "//tsl/protobuf:coordination_service_proto_cc",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",

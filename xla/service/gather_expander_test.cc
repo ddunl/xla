@@ -15,7 +15,7 @@ limitations under the License.
 
 #include "xla/service/gather_expander.h"
 
-#include "xla/service/hlo_query.h"
+#include "xla/hlo/utils/hlo_query.h"
 #include "xla/test.h"
 #include "xla/tests/hlo_test_base.h"
 #include "xla/tests/test_macros.h"
@@ -49,7 +49,7 @@ ENTRY main {
   EXPECT_EQ(status.code(), tsl::error::UNIMPLEMENTED);
 
   ASSERT_THAT(
-      status.error_message(),
+      status.message(),
       ::testing::HasSubstr("Gather operations with more than 2147483647 gather "
                            "indices are not supported."));
 }

@@ -2,6 +2,7 @@ load("@tsl//tsl/platform:rules_cc.bzl", "cc_library")
 load("//xla/tests:build_defs.bzl", "xla_test")
 load("@tsl//tsl:tsl.bzl", "if_cuda_or_rocm")
 load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda")
+load("@local_config_rocm//rocm:build_defs.bzl", "if_rocm")
 load("//xla:xla.bzl", "xla_cc_binary")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 
@@ -15,6 +16,7 @@ build_test(
     name = "hlo_runner_main_build_test",
     tags = [
         "gpu",
+        "no_rocm",
     ],
     targets = [
         ":hlo_runner_main",
@@ -33,9 +35,9 @@ xla_cc_binary(
     deps = [
         ":functional_hlo_runner",
         ":hlo_runner_flags",
-        "@com_google_absl//absl/strings",
         "//xla:debug_options_flags",
         "//xla:status",
+        "@com_google_absl//absl/strings",
         "@tsl//tsl/platform:logging",
         "@tsl//tsl/platform:platform_port",
         "@tsl//tsl/platform:status",
@@ -45,6 +47,8 @@ xla_cc_binary(
         "//xla/service:gpu_plugin",
     ]) + if_cuda([
         "//xla/stream_executor:cuda_platform",
+    ]) + if_rocm([
+        "//xla/stream_executor:rocm_platform",
     ]),
 )
 
@@ -54,6 +58,7 @@ cc_library(
     hdrs = ["functional_hlo_runner.h"],
     deps = [
         "//xla:literal",
+        "//xla:shape_util",
         "//xla:status",
         "//xla/hlo/ir:hlo",
         "//xla/pjrt:pjrt_client",

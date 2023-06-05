@@ -29,6 +29,7 @@ package_group(
         "//third_party/mlir_edge/model_curriculum/...",
         "//third_party/py/jax/...",
         "//third_party/py/t5x/...",
+        "//third_party/py/tpu_graphs/...",
         "//tensorflow/compiler/...",
         "//tensorflow/python/tpu/...",
     ],
@@ -204,6 +205,7 @@ cc_library(
     compatible_with = get_compatible_with_portable(),
     visibility = [":friends"],
     deps = [
+        "@com_google_absl//absl/strings:str_format",
         "@eigen_archive//:eigen3",
     ],
 )
@@ -557,6 +559,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
+        "@eigen_archive//:eigen3",
         "@tsl//tsl/lib/core:bitmap",
         "@tsl//tsl/platform:errors",
         "@tsl//tsl/platform:float8",
@@ -679,7 +682,6 @@ cc_library(
         "@com_google_absl//absl/functional:function_ref",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
-        "@tsl//tsl/platform:logging",
     ],
 )
 
@@ -769,6 +771,10 @@ cc_library(
     hdrs = ["executable_run_options.h"],
     compatible_with = get_compatible_with_portable(),
     visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+    ],
 )
 
 cc_library(
@@ -1176,7 +1182,9 @@ filegroup(
         "runlit.cfg.py",
         "runlit.site.cfg.py",
     ],
-    visibility = ["//xla:__subpackages__"],
+    visibility = [
+        "//xla:__subpackages__",  # Scheuklappen: keep
+    ],
 )
 
 # -----------------------------------------------------------------------------

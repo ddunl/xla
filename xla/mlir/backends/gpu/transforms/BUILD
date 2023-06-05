@@ -28,6 +28,7 @@ gentbl_cc_library(
 cc_library(
     name = "passes",
     srcs = [
+        "add_concurrent_regions.cc",
         "add_hlo_trace_annotations.cc",
         "gpu_to_gpu_runtime.cc",
         "lmhlo_gpu_to_gpu_runtime.cc",
@@ -44,6 +45,8 @@ cc_library(
     compatible_with = [],
     deps = [
         ":passes_inc_gen",
+        "//xla:debug_options_flags",
+        "//xla:xla_proto_cc",
         "//xla/mlir/runtime/ir:rt",
         "//xla/mlir/runtime/utils:custom_calls",
         "//xla/mlir_hlo:lhlo",
@@ -54,8 +57,9 @@ cc_library(
         "//xla/service/gpu:nccl_collective_thunks",
         "//xla/stream_executor:blas",
         "//xla/translate/mhlo_to_hlo:location_exporter",
-        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:ControlFlowDialect",
@@ -67,6 +71,5 @@ cc_library(
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:Transforms",
-        "@tsl//tsl/platform:logging",
     ],
 )

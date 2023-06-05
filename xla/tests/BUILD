@@ -392,6 +392,7 @@ xla_test(
     deps = [
         ":hlo_test_base",
         ":literal_test_util",
+        ":test_utils",
         ":verified_hlo_module",
         ":xla_internal_test_main",
         "//xla:literal",
@@ -401,9 +402,7 @@ xla_test(
         "//xla/hlo/ir:hlo",
         "//xla/service:backend",
         "//xla/service:executable",
-        "@com_google_absl//absl/memory",
         "@tsl//tsl/lib/core:status_test_util",
-        "@tsl//tsl/platform:test",
     ],
 )
 
@@ -675,17 +674,12 @@ xla_test(
     srcs = ["conditional_test.cc"],
     shard_count = 2,
     deps = [
+        ":client_library_test_base",
+        ":literal_test_util",
         ":test_macros_header",
-        "//xla:xla_data_proto_cc",
-        "//xla/client:global_data",
-        "//xla/client:local_client",
+        ":xla_internal_test_main",
         "//xla/client:xla_builder",
         "//xla/client:xla_computation",
-        "//xla/tests:client_library_test_base",
-        "//xla/tests:literal_test_util",
-        "//xla/tests:xla_internal_test_main",
-        "@tsl//tsl/platform:logging",
-        "@tsl//tsl/platform:test",
     ],
 )
 
@@ -738,7 +732,10 @@ xla_test(
     name = "deallocation_test",
     srcs = ["deallocation_test.cc"],
     deps = [
+        ":client_library_test_base",
         ":test_macros_header",
+        ":test_utils",
+        ":xla_internal_test_main",
         "//xla:statusor",
         "//xla:test",
         "//xla:test_helpers",
@@ -746,8 +743,6 @@ xla_test(
         "//xla/client:local_client",
         "//xla/client:xla_builder",
         "//xla/client:xla_computation",
-        "//xla/tests:client_library_test_base",
-        "//xla/tests:xla_internal_test_main",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -756,7 +751,9 @@ xla_test(
     name = "deconstruct_tuple_test",
     srcs = ["deconstruct_tuple_test.cc"],
     deps = [
+        ":client_library_test_base",
         ":test_macros_header",
+        ":xla_internal_test_main",
         "//xla:literal",
         "//xla:shape_util",
         "//xla:statusor",
@@ -767,8 +764,6 @@ xla_test(
         "//xla/client:local_client",
         "//xla/client:xla_builder",
         "//xla/client:xla_computation",
-        "//xla/tests:client_library_test_base",
-        "//xla/tests:xla_internal_test_main",
         "@com_google_absl//absl/types:span",
         "@tsl//tsl/platform:test",
     ],
@@ -866,7 +861,6 @@ xla_test(
     deps = [
         ":client_library_test_base",
         ":hlo_test_base",
-        ":literal_test_util",
         ":test_macros_header",
         ":test_utils",
         ":xla_internal_test_main",
@@ -880,7 +874,6 @@ xla_test(
         "//xla/client/lib:matrix",
         "//xla/service:hlo_parser",
         "@com_google_absl//absl/strings",
-        "@tsl//tsl/platform:logging",
         "@tsl//tsl/platform:test",
         "@tsl//tsl/platform:test_benchmark",
     ],
@@ -987,9 +980,9 @@ xla_test(
         ":client_library_test_base",
         ":hlo_test_base",
         ":test_macros_header",
+        ":xla_internal_test_main",
         "//xla:status_macros",
         "//xla:test",
-        "//xla/tests:xla_internal_test_main",
     ],
 )
 
@@ -1673,11 +1666,24 @@ xla_test(
     name = "reduce_hlo_test",
     srcs = ["reduce_hlo_test.cc"],
     deps = [
+        ":hlo_test_base",
         ":test_macros_header",
-        "//xla/tests:hlo_test_base",
-        "//xla/tests:xla_internal_test_main",
+        ":test_utils",
+        ":xla_internal_test_main",
         "@com_google_absl//absl/strings",
-        "@tsl//tsl/platform:logging",
+        "@tsl//tsl/platform:test",
+    ],
+)
+
+xla_test(
+    name = "topk_test",
+    srcs = ["topk_test.cc"],
+    deps = [
+        ":hlo_test_base",
+        ":test_macros_header",
+        ":test_utils",
+        ":xla_internal_test_main",
+        "@com_google_absl//absl/strings",
         "@tsl//tsl/platform:test",
     ],
 )
@@ -1988,6 +1994,7 @@ xla_test(
     deps = [
         ":test_macros_header",
         "//xla:shape_util",
+        "//xla:types",
         "//xla:xla_data_proto_cc",
         "//xla/client:local_client",
         "//xla/client:xla_builder",
@@ -2065,7 +2072,6 @@ xla_test(
         ":xla_internal_test_main",
         "//xla:literal",
         "//xla:shape_util",
-        "//xla:test",
         "//xla:test_helpers",
         "//xla:xla_data_proto_cc",
         "//xla/client:local_client",
@@ -2079,6 +2085,63 @@ xla_test(
         "@tsl//tsl/platform:env",
         "@tsl//tsl/platform:logging",
         "@tsl//tsl/platform:test",
+    ],
+)
+
+xla_test(
+    name = "collective_ops_test_e2e",
+    srcs = ["collective_ops_test_e2e.cc"],
+    backend_tags = {
+        # This test is tagged "manual" because it requires multiple GPUs, and
+        # Forge only supports single-GPU tests.  Guitar skips "manual" tests
+        # unless they're also tagged "guitar".
+        "gpu": [
+            "guitar",
+            "manual",
+            "multi_gpu",
+            "no_oss",
+            "notap",
+            "jitrt_executable",
+        ],
+    },
+    backends = [
+        "gpu",
+    ],
+    deps = [
+        ":client_library_test_base",
+        ":hlo_test_base",
+        ":literal_test_util",
+        ":test_macros_header",
+        ":test_utils",
+        ":xla_internal_test_main",
+        "//xla:literal",
+        "//xla:shape_util",
+        "//xla:test",
+        "//xla:test_helpers",
+        "//xla:xla_data_proto_cc",
+        "//xla/client:local_client",
+        "//xla/hlo/ir:hlo",
+        "//xla/hlo/utils:hlo_matchers",
+        "//xla/service:hlo_runner",
+        "//xla/service/gpu:backend_configs_cc",
+        "@tsl//tsl/platform:test",
+    ],
+)
+
+xla_test(
+    name = "data_parallel_collective_optimizer_execution_test",
+    srcs = ["data_parallel_collective_optimizer_execution_test.cc"],
+    deps = [
+        ":hlo_test_base",
+        ":xla_internal_test_main",
+        "//xla:statusor",
+        "//xla/hlo/ir:hlo",
+        "//xla/service:data_parallel_collective_optimizer",
+        "//xla/service:hlo_dce",
+        "//xla/service:hlo_parser",
+        "//xla/service:hlo_pass_pipeline",
+        "//xla/service:pattern_matcher",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

@@ -2,12 +2,12 @@ load("//tsl/platform:rules_cc.bzl", "cc_library")
 load("//tsl:tsl.default.bzl", "get_compatible_with_portable")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//tensorflow:license"],
     default_visibility = ["//visibility:public"],
     features = [
         # Required since headers are not self-contained.
         "-parse_headers",
     ],
-    licenses = ["notice"],
 )
 
 config_setting(
@@ -55,7 +55,7 @@ cc_library(
     # specialization there causing build breakages.  This must be added here
     # as "defines" so that the header is excluded in all dependent targets.
     # TODO(b/238649163): remove this once no longer necessary.
-    defines = ["GEMM_KERNEL_H"],
+    defines = ["EIGEN_USE_AVX512_GEMM_KERNELS=0"],
     deps = select({
         ":no_mkldnn_contraction_kernel": [":eigen_contraction_kernel_no_mkl"],
         "//conditions:default": [":eigen_contraction_kernel_with_mkl"],
@@ -82,10 +82,10 @@ cc_library(
         ],
     }),
     deps = [
-        "@com_google_absl//absl/base",
-        "@eigen_archive//:eigen3",
         "//tsl/framework/fixedpoint",
         "//tsl/platform:dynamic_annotations",
+        "@com_google_absl//absl/base",
+        "@eigen_archive//:eigen3",
     ] + select({
         "//tsl:android_x86": [],
         "//tsl:arm_any": [],

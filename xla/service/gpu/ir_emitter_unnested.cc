@@ -26,10 +26,8 @@ limitations under the License.
 #include <memory>
 #include <numeric>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <tuple>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -84,7 +82,6 @@ limitations under the License.
 #include "xla/permutation_util.h"
 #include "xla/primitive_util.h"
 #include "xla/service/buffer_assignment.h"
-#include "xla/service/collective_ops_utils.h"
 #include "xla/service/custom_call_target_registry.h"
 #include "xla/service/gpu/backend_configs.pb.h"
 #include "xla/service/gpu/conditional_thunk.h"
@@ -141,7 +138,6 @@ limitations under the License.
 #include "xla/xla_data.pb.h"
 #include "tsl/platform/errors.h"
 #include "tsl/platform/human_readable_json.h"
-#include "tsl/platform/logging.h"
 #include "tsl/platform/status.h"
 #include "tsl/platform/statusor.h"
 #include "tsl/protobuf/dnn.pb.h"
@@ -1180,15 +1176,19 @@ Status IrEmitterUnnested::EmitCublasLtMatmulThunkF8(mlir::Operation* op) {
                       GetAllocationSlice(matmul.getCScale()));
   TF_ASSIGN_OR_RETURN(BufferAllocation::Slice d_scale,
                       GetAllocationSlice(matmul.getDScale()));
-  BufferAllocation::Slice d_amax;
+  BufferAllocation::Slice d_amax, bias;
   if (matmul.getDAmax() != nullptr) {
     TF_ASSIGN_OR_RETURN(d_amax, GetAllocationSlice(matmul.getDAmax()));
   }
+  if (matmul.getBias() != nullptr) {
+    TF_ASSIGN_OR_RETURN(bias, GetAllocationSlice(matmul.getBias()));
+  }
 
-  BufferAllocation::Slice bias, aux;  // Not used.
+  BufferAllocation::Slice aux;  // Not used.
 
   TF_ASSIGN_OR_RETURN(cublas_lt::MatmulPlan plan,
                       cublas_lt::MatmulPlan::For(matmul));
+
   auto thunk = std::make_unique<CublasLtMatmulThunk>(
       GetThunkInfo(op), std::move(plan), matmul.getAlgorithm(), a, b, c, d,
       bias, aux, a_scale, b_scale, c_scale, d_scale, d_amax);
@@ -1763,7 +1763,8 @@ Status IrEmitterUnnested::EmitLaunchFunc(mlir::Operation* op) {
 
 #if GOOGLE_CUDA
 Status IrEmitterUnnested::EmitTritonFusion(
-    mlir::Operation* op, tensorflow::AutotuneResult::TritonGemmKey& config) {
+    mlir::Operation* op,
+    const tensorflow::AutotuneResult::TritonGemmKey& config) {
   // Note: In this method we can't use `BuildKernelThunk` as usual,
   // because we only get the launch dimensions after code generation. So we
   // implement kernel reuse using lower level APIs, such as
@@ -1803,40 +1804,36 @@ Status IrEmitterUnnested::EmitTritonFusion(
 
   VLOG(3) << "Generating: " << suggested_kernel_name;
 
-  // We still need `impl_fn` because we only get the launch dimension
-  // after Triton code generation and it is needed for creating the kernel and
-  // the thunk.
-  // TODO(tdanyluk): Consider removing `impl_fn` to simplify the emitted code.
   const std::string impl_fn_name =
       ir_emitter_context_->name_uniquer()->GetUniqueName(
           llvm_ir::SanitizeFunctionName(
               absl::StrCat(suggested_kernel_name, "_impl")));
-  const std::optional<LaunchDimensions> launch_dimensions = TritonWrapper(
-      impl_fn_name, hlo_computation,
-      ir_emitter_context_->cuda_compute_capability(),
-      ir_emitter_context_->gpu_device_info(), config, module_, &MatMul);
-  TF_RET_CHECK(launch_dimensions.has_value());
+  TF_ASSIGN_OR_RETURN(
+      LaunchDimensions launch_dimensions,
+      TritonWrapper(impl_fn_name, hlo_computation,
+                    ir_emitter_context_->cuda_compute_capability(),
+                    ir_emitter_context_->gpu_device_info(), config, module_,
+                    &MatMul, *ir_emitter_context_->mlir_context()));
   llvm::Function* impl_fn = module_->getFunction(impl_fn_name);
   TF_RET_CHECK(impl_fn);
 
   auto [kernel, ir_arrays] = BuildKernelPrototype(
-      suggested_kernel_name, kernel_arguments, launch_dimensions.value());
+      suggested_kernel_name, kernel_arguments, launch_dimensions);
 
   TF_ASSIGN_OR_RETURN(
       KernelThunk * thunk,
       BuildKernelThunkImpl(kernel->getName().str(), kernel_arguments,
-                           GetThunkInfo(fusion_op), launch_dimensions.value()));
+                           GetThunkInfo(fusion_op), launch_dimensions));
   kernel_reuse_cache_[fingerprint] = thunk;
 
-  std::vector<llvm::Value*> args;
-  args.reserve(ir_arrays.size());
-  for (const llvm_ir::IrArray& a : ir_arrays) {
-    args.push_back(a.GetBasePointer());
+  // Move function body into kernel prototype.
+  llvm::Function* prototype_func = b_.GetInsertBlock()->getParent();
+  prototype_func->splice(prototype_func->begin(), impl_fn);
+  for (const auto& [arg, ir_array] :
+       llvm::zip_first(impl_fn->args(), ir_arrays)) {
+    arg.replaceAllUsesWith(ir_array.GetBasePointer());
   }
-  llvm::Function* wrapper_fn = b_.GetInsertBlock()->getParent();
-  llvm::CallInst::Create(
-      impl_fn, args, /*NameStr=*/"",
-      /*InsertBefore=*/wrapper_fn->getEntryBlock().getTerminator());
+  impl_fn->eraseFromParent();
 
   LogAndVerify(module_);
 
@@ -1913,10 +1910,9 @@ Status IrEmitterUnnested::EmitLoopFusion(mlir::Operation* op) {
     launch_config.few_waves = false;
   }
 
-  TF_ASSIGN_OR_RETURN(
-      LaunchDimensions launch_dimensions,
-      CalculateLaunchDimensions(element_shape, gpu_device_info, launch_config));
-
+  TF_ASSIGN_OR_RETURN(LaunchDimensions launch_dimensions,
+                      CalculateLaunchDimensions(element_shape, gpu_device_info,
+                                                launch_config, op));
   TF_ASSIGN_OR_RETURN(
       std::optional<std::vector<llvm_ir::IrArray>> opt_ir_arrays,
       BuildKernelThunkForFusion(fusion, launch_dimensions));
@@ -2017,6 +2013,20 @@ Status IrEmitterUnnested::EmitUnnestedTranspose(
 
 Status IrEmitterUnnested::EmitFusion(mlir::Operation* op) {
   auto fusion_op = mlir::cast<mlir::lmhlo::FusionOp>(op);
+
+  FusionBackendConfig backend_config;
+  if (auto backend_config_str = fusion_op.getBackendConfig()
+                                    .value_or(mlir::Attribute())
+                                    .dyn_cast_or_null<mlir::StringAttr>()) {
+    auto status = tsl::HumanReadableJsonToProto(backend_config_str.str(),
+                                                &backend_config);
+    if (!status.ok()) {
+      LOG(ERROR) << "Ignoring invalid backend config on "
+                 << GetIrNameFromLoc(op->getLoc()) << ": "
+                 << backend_config_str.str();
+    }
+  }
+
   TF_ASSIGN_OR_RETURN(
       HloComputation * fused_computation,
       GetOrCreateSubComputationFromRegion(&fusion_op.getRegion(),
@@ -2031,24 +2041,19 @@ Status IrEmitterUnnested::EmitFusion(mlir::Operation* op) {
   }
 
 #if GOOGLE_CUDA
-  if (auto backend_config = fusion_op.getBackendConfig()
-                                .value_or(mlir::Attribute())
-                                .dyn_cast_or_null<mlir::StringAttr>()) {
-    tensorflow::AutotuneResult::TritonGemmKey triton_config;
-    if (backend_config == kTritonGemmBackendConfig) {
-      LOG(WARNING) << "Using fallback triton GEMM config";
+  if (backend_config.kind() == kTritonGemmFusionKind) {
+    if (!backend_config.has_triton_gemm_config()) {
+      LOG(WARNING) << "Using fallback triton GEMM config for op "
+                   << GetIrNameFromLoc(op->getLoc());
+      auto& triton_config = *backend_config.mutable_triton_gemm_config();
       triton_config.set_block_m(64);
       triton_config.set_block_k(64);
       triton_config.set_block_n(64);
       triton_config.set_split_k(1);
       triton_config.set_num_stages(1);
       triton_config.set_num_warps(2);
-      return EmitTritonFusion(fusion_op, triton_config);
-    } else if (tsl::HumanReadableJsonToProto(backend_config.str(),
-                                             &triton_config)
-                   .ok()) {
-      return EmitTritonFusion(fusion_op, triton_config);
     }
+    return EmitTritonFusion(fusion_op, backend_config.triton_gemm_config());
   }
 #endif  // GOOGLE_CUDA
 
@@ -2122,8 +2127,9 @@ Status IrEmitterUnnested::EmitExtraOutputsForReduce(
 
   // Compute all extra output values before writing them. This avoids
   // overwriting aliased input/output buffers before all reads occurred.
-  absl::flat_hash_map<const HloInstruction*, llvm::Value*>
+  std::vector<std::pair<const HloInstruction*, llvm::Value*>>
       extra_output_ir_values;
+  extra_output_ir_values.reserve(extra_output_gens.size());
 
   auto get_index = [&](const HloInstruction* instr) {
     const Shape& s = instr->shape();
@@ -2135,7 +2141,7 @@ Status IrEmitterUnnested::EmitExtraOutputsForReduce(
   for (const auto& [instr, generator] : extra_output_gens) {
     TF_ASSIGN_OR_RETURN(llvm::Value* const extra_output_ir_value,
                         generator(get_index(instr)));
-    extra_output_ir_values[instr] = extra_output_ir_value;
+    extra_output_ir_values.emplace_back(instr, extra_output_ir_value);
   }
 
   for (const auto& [instr, generator] : extra_output_ir_values) {
@@ -2993,7 +2999,7 @@ Status IrEmitterUnnested::EmitCollectivePermute(mlir::Operation* op) {
   const int64_t replica_count = hlo_module_config_.replica_count();
   const int64_t partition_count = hlo_module_config_.num_partitions();
 
-  NcclCollectiveThunk::AsyncExecutor* async_executor = nullptr;
+  NcclCollectiveThunk::AsyncExecutor* async_executor;
   if (NcclThunkType::IsDegenerate(collective_permute_op, replica_count,
                                   partition_count)) {
     // For a degenerate collective permute, just generate a copy thunk.
@@ -3004,6 +3010,8 @@ Status IrEmitterUnnested::EmitCollectivePermute(mlir::Operation* op) {
         /*mem_size=*/ShapeUtil::ByteSizeOf(shape),
         /*source_value=*/collective_permute_op.getOperand(),
         /*destination_value=*/collective_permute_op.getOutput()));
+    // Signal that start thunk not created with nullptr.
+    async_executor = nullptr;
   } else {
     const NcclCollectiveThunk::Buffer buffer = {
         /*element_count=*/ShapeUtil::ElementsIn(shape),
@@ -3012,16 +3020,10 @@ Status IrEmitterUnnested::EmitCollectivePermute(mlir::Operation* op) {
     auto thunk =
         std::make_unique<NcclThunkType>(GetThunkInfo(op), collective_permute_op,
                                         replica_count, partition_count, buffer);
-    if constexpr (NcclThunkType::IsAsync()) {
-      async_executor = &thunk->async_executor();
-    }
+    async_executor = thunk->async_executor();
     AddThunkToThunkSequence(std::move(thunk));
   }
-
-  // Signal that start thunk not created with nullptr.
-  if constexpr (NcclThunkType::IsAsync()) {
-    async_executors_.insert({op, async_executor});
-  }
+  async_executors_.insert({op, async_executor});
   return OkStatus();
 }
 
@@ -3030,7 +3032,8 @@ Status IrEmitterUnnested::EmitNcclThunk(mlir::Operation* untyped_op) {
   OpT op = mlir::cast<OpT>(untyped_op);
   int64_t replica_count = hlo_module_config_.replica_count();
   int64_t partition_count = hlo_module_config_.num_partitions();
-  VLOG(2) << NcclThunkType::GetName() << "; replica count: " << replica_count
+  VLOG(2) << NcclThunkType::GetHloOpName()
+          << "; replica count: " << replica_count
           << "; partition count: " << partition_count
           << "; operand count: " << op.getOperands().size()
           << "; NCCL is enabled: " << NcclThunkType::NcclIsEnabled();
@@ -3040,8 +3043,9 @@ Status IrEmitterUnnested::EmitNcclThunk(mlir::Operation* untyped_op) {
   // and we can just copy the input to the output.
   bool is_degenerate =
       NcclThunkType::IsDegenerate(op, replica_count, partition_count);
-  bool should_use_nccl_thunk =
-      !is_degenerate && NcclThunkType::CanImplement(op);
+  Status implementable_status =
+      NcclThunkType::CheckImplementable(op, replica_count, partition_count);
+  bool should_use_nccl_thunk = !is_degenerate && implementable_status.ok();
 
   // Stash relevant information in NcclCollectiveThunk::Buffer even if we may
   // not generate an NcclCollectiveThunk.
@@ -3065,41 +3069,21 @@ Status IrEmitterUnnested::EmitNcclThunk(mlir::Operation* untyped_op) {
     auto thunk =
         std::make_unique<NcclThunkType>(GetThunkInfo(op), op,
                                         /*buffers=*/std::move(buffers));
-
-    if constexpr (NcclThunkType::IsAsync()) {
-      async_executors_.insert({untyped_op, &thunk->async_executor()});
-    }
-
+    async_executors_.insert({untyped_op, thunk->async_executor()});
     AddThunkToThunkSequence(std::move(thunk));
     return OkStatus();
   }
 
-  // Signal that start thunk not created with nullptr.
-  if constexpr (NcclThunkType::IsAsync()) {
-    async_executors_.insert({untyped_op, nullptr});
-  }
-
   if (!is_degenerate) {
-    CollectiveOpGroupMode group_mode = NcclThunkType::GetGroupMode(op);
-
-    std::string message = absl::StrFormat(
-        "Requested %s not implemented on GPU; replica_count: %d; "
-        "partition_count: %d, group_mode: %s, operand_count: %d; NCCL support: "
-        "%d",
-        NcclThunkType::GetName(), replica_count, partition_count,
-        CollectiveOpGroupModeToString(group_mode), op.getOperands().size(),
-        NcclThunkType::NcclIsEnabled());
-    if (!op.getOperands().empty()) {
-      const Shape shape = GetShape(op.getOperands().front());
-      absl::StrAppendFormat(&message, "; first operand array element-type: %s",
-                            PrimitiveType_Name(shape.element_type()));
-    }
-    return Unimplemented("%s", message);
+    return implementable_status;
   }
+
+  // Signal that start thunk not created with nullptr.
+  async_executors_.insert({untyped_op, nullptr});
 
   VLOG(1) << "Collective call is degenerate, not doing NCCL call";
 
-  // All-gather with one replica is simply the identity function. Buffer
+  // Degenerate collectives are simply identity function. Buffer
   // assignment expects a copy, so that's what we do.
   ThunkSequence thunks;
   for (int64_t i = 0; i < buffers.size(); i++) {
@@ -3121,8 +3105,9 @@ Status IrEmitterUnnested::EmitNcclThunk(mlir::Operation* untyped_op) {
   return OkStatus();
 }
 
-template <typename NcclThunkType, typename OpT>
-Status IrEmitterUnnested::EmitNcclAsyncDone(mlir::Operation* op) {
+template <typename OpT>
+Status IrEmitterUnnested::EmitNcclAsyncDone(Thunk::Kind kind,
+                                            mlir::Operation* op) {
   auto start_op = mlir::cast<OpT>(op).getToken().getDefiningOp();
   auto async_executor = async_executors_.extract(start_op);
   TF_RET_CHECK(async_executor) << "couldn't find async executor for start op";
@@ -3130,8 +3115,8 @@ Status IrEmitterUnnested::EmitNcclAsyncDone(mlir::Operation* op) {
   // Can be null if no start thunk was created (e.g. if the start op is
   // degenerate), in which case there's nothing to do here.
   if (async_executor.mapped() != nullptr) {
-    AddThunkToThunkSequence(std::make_unique<NcclThunkType>(
-        GetThunkInfo(op), *async_executor.mapped()));
+    AddThunkToThunkSequence(std::make_unique<NcclCollectiveDoneThunk>(
+        kind, GetThunkInfo(op), *async_executor.mapped()));
   }
   return OkStatus();
 }
@@ -4504,10 +4489,9 @@ Status IrEmitterUnnested::EmitTransposeTile(
     const TilingScheme& tiling_scheme,
     const LaunchDimensions& launch_dimensions) {
   std::vector<HloInstruction*> hlo_roots = GetFusionRoots(fusion_hlo);
-  const HloInstruction* first_transpose = &FindNonTrivialHero(
-      **absl::c_find_if(hlo_roots, [](HloInstruction* instr) {
-        return FindAnyTiledTranspose(FindNonTrivialHero(*instr));
-      }));
+  const HloInstruction* first_transpose = &FindNonTrivialHero(**absl::c_find_if(
+      hlo_roots,
+      [](HloInstruction* instr) { return FindAnyTiledTranspose(*instr); }));
 
   const Shape& transpose_in_shape = first_transpose->operand(0)->shape();
   auto first_tiled_transpose = FindAnyTiledTranspose(*first_transpose);
@@ -4639,6 +4623,17 @@ Status IrEmitterUnnested::EmitTransposeTile(
               FusedIrEmitter fused_emitter(elemental_emitter_);
               fused_emitter.BindGenerator(
                   hero, [&](const IrArray::Index& index) { return loaded; });
+              for (int64_t i = 0; i < fusion_hlo->num_parameters(); ++i) {
+                llvm_ir::IrArray ir_array = operand_arrays[i];
+                HloInstruction* fused_operand =
+                    fusion_hlo->parameter_instruction(i);
+                fused_emitter.BindGenerator(
+                    *fused_operand, [this, ir_array, fused_operand](
+                                        const llvm_ir::IrArray::Index& index) {
+                      return ir_array.EmitReadArrayElement(
+                          index, &b_, fused_operand->name());
+                    });
+              }
 
               // Apply codegeneration for the code after the real hero.
               TF_ASSIGN_OR_RETURN(llvm_ir::ElementGenerator gen,
@@ -5743,23 +5738,14 @@ Status IrEmitterUnnested::EmitOp(mlir::Operation* op) {
                                     mlir::lmhlo::PartitionIdOp>(op);
   }
 
-  if (mlir::isa<mlir::lmhlo::CollectivePermuteOp>(op)) {
-    return EmitCollectivePermute<NcclCollectivePermuteThunk,
-                                 mlir::lmhlo::CollectivePermuteOp>(op);
-  }
-
   if (mlir::isa<mlir::lmhlo_gpu::CollectivePermuteStartOp>(op)) {
     return EmitCollectivePermute<NcclCollectivePermuteStartThunk,
                                  mlir::lmhlo_gpu::CollectivePermuteStartOp>(op);
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::CollectivePermuteDoneOp>(op)) {
-    return EmitNcclAsyncDone<NcclCollectivePermuteDoneThunk,
-                             mlir::lmhlo_gpu::CollectivePermuteDoneOp>(op);
-  }
-
-  if (mlir::isa<mlir::lmhlo::AllGatherOp>(op)) {
-    return EmitNcclThunk<NcclAllGatherThunk, mlir::lmhlo::AllGatherOp>(op);
+    return EmitNcclAsyncDone<mlir::lmhlo_gpu::CollectivePermuteDoneOp>(
+        Thunk::kNcclCollectivePermuteDone, op);
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::AllGatherStartOp>(op)) {
@@ -5768,12 +5754,8 @@ Status IrEmitterUnnested::EmitOp(mlir::Operation* op) {
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::AllGatherDoneOp>(op)) {
-    return EmitNcclAsyncDone<NcclAllGatherDoneThunk,
-                             mlir::lmhlo_gpu::AllGatherDoneOp>(op);
-  }
-
-  if (mlir::isa<mlir::lmhlo::AllReduceOp>(op)) {
-    return EmitNcclThunk<NcclAllReduceThunk, mlir::lmhlo::AllReduceOp>(op);
+    return EmitNcclAsyncDone<mlir::lmhlo_gpu::AllGatherDoneOp>(
+        Thunk::kNcclAllGatherDone, op);
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::AllReduceStartOp>(op)) {
@@ -5782,13 +5764,8 @@ Status IrEmitterUnnested::EmitOp(mlir::Operation* op) {
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::AllReduceDoneOp>(op)) {
-    return EmitNcclAsyncDone<NcclAllReduceDoneThunk,
-                             mlir::lmhlo_gpu::AllReduceDoneOp>(op);
-  }
-
-  if (mlir::isa<mlir::lmhlo::ReduceScatterOp>(op)) {
-    return EmitNcclThunk<NcclReduceScatterThunk, mlir::lmhlo::ReduceScatterOp>(
-        op);
+    return EmitNcclAsyncDone<mlir::lmhlo_gpu::AllReduceDoneOp>(
+        Thunk::kNcclAllReduceDone, op);
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::ReduceScatterStartOp>(op)) {
@@ -5797,12 +5774,8 @@ Status IrEmitterUnnested::EmitOp(mlir::Operation* op) {
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::ReduceScatterDoneOp>(op)) {
-    return EmitNcclAsyncDone<NcclReduceScatterDoneThunk,
-                             mlir::lmhlo_gpu::ReduceScatterDoneOp>(op);
-  }
-
-  if (mlir::isa<mlir::lmhlo::AllToAllOp>(op)) {
-    return EmitNcclThunk<NcclAllToAllThunk, mlir::lmhlo::AllToAllOp>(op);
+    return EmitNcclAsyncDone<mlir::lmhlo_gpu::ReduceScatterDoneOp>(
+        Thunk::kNcclReduceScatterDone, op);
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::AllToAllStartOp>(op)) {
@@ -5811,8 +5784,8 @@ Status IrEmitterUnnested::EmitOp(mlir::Operation* op) {
   }
 
   if (mlir::isa<mlir::lmhlo_gpu::AllToAllDoneOp>(op)) {
-    return EmitNcclAsyncDone<NcclAllToAllDoneThunk,
-                             mlir::lmhlo_gpu::AllToAllDoneOp>(op);
+    return EmitNcclAsyncDone<mlir::lmhlo_gpu::AllToAllDoneOp>(
+        Thunk::kNcclAllToAllDone, op);
   }
 
   if (mlir::isa<mlir::lmhlo::InfeedOp>(op)) {

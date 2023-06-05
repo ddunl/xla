@@ -1,12 +1,13 @@
 load("//tsl/platform:rules_cc.bzl", "cc_library")
 load("//tsl/platform:build_config.bzl", "tsl_cc_test")
 load("//tsl:tsl.default.bzl", "get_compatible_with_cloud", "tsl_grpc_cc_dependencies")
+load("//tsl:tsl.bzl", "set_external_visibility")
 
 package(
     # copybara:uncomment default_applicable_licenses = ["//tensorflow:license"],
-    default_visibility = [
+    default_visibility = set_external_visibility([
         "//tsl:internal",
-    ],
+    ]),
     licenses = ["notice"],
 )
 
@@ -72,8 +73,6 @@ tsl_cc_test(
     deps = [
         ":preemption_notifier",
         ":preemption_sync_manager",
-        "@com_google_absl//absl/memory",
-        "@com_google_absl//absl/time",
         "//tsl/distributed_runtime/coordination:coordination_client",
         "//tsl/distributed_runtime/coordination:coordination_service",
         "//tsl/distributed_runtime/coordination:coordination_service_agent",
@@ -91,5 +90,7 @@ tsl_cc_test(
         "//tsl/protobuf:coordination_config_proto_cc_impl",
         "//tsl/protobuf:coordination_service_proto_cc_impl",
         "//tsl/protobuf:distributed_runtime_payloads_proto_cc_impl",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/time",
     ] + tsl_grpc_cc_dependencies(),
 )

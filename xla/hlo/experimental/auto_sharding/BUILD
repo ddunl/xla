@@ -1,6 +1,7 @@
 # Automatic sharding annotation
 
-load("//xla:xla.bzl", "xla_cc_binary")
+load("//xla:xla.bzl", "xla_cc_binary", "xla_cc_test")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 
 package(
     # copybara:uncomment default_applicable_licenses = ["//tensorflow:license"],
@@ -31,6 +32,7 @@ cc_library(
         ":cluster_environment",
         ":matrix",
         ":metrics",
+        "//xla:util",
         "//xla/hlo/ir:hlo",
         "//xla/hlo/utils:hlo_sharding_util",
         "//xla/service:dump",
@@ -121,6 +123,7 @@ cc_library(
         "//xla/hlo/ir:hlo",
         "//xla/hlo/utils:hlo_sharding_util",
         "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -147,5 +150,28 @@ xla_cc_binary(
         "//xla/stream_executor:dnn",
         "//xla/tools:hlo_module_loader",
         "@tsl//tsl/platform:platform_port",
+    ],
+)
+
+build_test(
+    name = "auto_sharding_runner_build_test",
+    targets = [
+        ":auto_sharding_runner",
+    ],
+)
+
+xla_cc_test(
+    name = "auto_sharding_test",
+    srcs = ["auto_sharding_test.cc"],
+    deps = [
+        ":auto_sharding",
+        ":auto_sharding_util",
+        "//xla/hlo/ir:hlo",
+        "//xla/hlo/utils:hlo_matchers",
+        "//xla/service:hlo_parser",
+        "//xla/tests:hlo_test_base",
+        "//xla/tests:xla_internal_test_main",
+        "@com_google_ortools//ortools/linear_solver",
+        "@tsl//tsl/lib/core:status_test_util",
     ],
 )

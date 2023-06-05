@@ -103,6 +103,7 @@ cc_library(
         "//xla:util",
         "//xla:xla_data_proto_cc",
         "//xla/client:xla_builder",
+        "@tsl//tsl/platform:float8",
     ],
 )
 
@@ -212,6 +213,7 @@ xla_test(
         "//xla/tests:client_library_test_base",
         "//xla/tests:test_macros_header",
         "//xla/tests:xla_internal_test_main",
+        "@tsl//tsl/lib/core:status_test_util",
     ],
 )
 

@@ -1,4 +1,10 @@
 load("@tsl//tsl/platform/default:cuda_build_defs.bzl", "if_cuda_is_configured")
+load("//xla:xla.bzl", "xla_cc_test")
+load("@local_config_cuda//cuda:build_defs.bzl", "cuda_library")
+load(
+    "@tsl//tsl/platform:build_config_root.bzl",
+    "tf_cuda_tests_tags",
+)
 
 package(
     # copybara:uncomment default_applicable_licenses = ["//tensorflow:license"],
@@ -96,6 +102,11 @@ cc_library(
     name = "custom_call",
     srcs = ["custom_call.cc"],
     hdrs = ["custom_call.h"],
+    copts = [
+        "-fexceptions",
+        "-fno-strict-aliasing",
+    ],
+    features = ["-use_header_modules"],
     deps = [
         ":support",
         ":triangular_solve",
@@ -119,6 +130,7 @@ cc_library(
     deps = [
         ":cholesky",
         ":collectives",
+        ":concurrent_region",
         ":conv",
         ":conv_reorder",
         ":cublas_lt_matmul",
@@ -132,6 +144,7 @@ cc_library(
         ":memset",
         ":send_recv",
         ":support",
+        ":topk",
         ":tracing",
         "//xla:xla_proto_cc",
         "//xla/mlir/runtime/transforms:compilation_pipeline_gpu",
@@ -166,12 +179,135 @@ cc_library(
 )
 
 cc_library(
+    name = "topk_kernel",
+    srcs = if_cuda_is_configured(
+        [
+            "topk_kernel.cc",
+        ],
+    ),
+    hdrs = if_cuda_is_configured(["topk_kernel.h"]),
+    compatible_with = [],
+    deps = [
+        ":topk_kernel_cuda",
+        "//xla:shape_util",
+        "//xla:xla_data_proto_cc",
+        "//xla/stream_executor:platform",
+        "//xla/stream_executor:stream_executor_headers",  # build_cleaner: keep
+        "//xla/stream_executor/gpu:gpu_stream_header",
+        "//xla/stream_executor/gpu:gpu_types_header",
+        "@com_google_absl//absl/numeric:bits",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+cuda_library(
+    name = "topk_kernel_cuda",
+    srcs = if_cuda_is_configured(
+        [
+            "topk_kernel.cu.cc",
+        ],
+    ),
+    hdrs = if_cuda_is_configured(["topk_kernel_common.h"]),
+    compatible_with = [],
+    deps = [
+        "@eigen_archive//:eigen3",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+xla_cc_test(
+    name = "topk_kernel_test",
+    srcs = if_cuda_is_configured(["topk_kernel_test.cc"]),
+    linkstatic = 1,
+    tags = tf_cuda_tests_tags(),
+    deps = [
+        ":topk_kernel",
+        "//xla:xla_data_proto_cc",
+        "//xla/stream_executor/gpu:gpu_types_header",
+        "//xla/stream_executor/host:host_platform",
+        "@com_google_absl//absl/random",
+        "@com_google_absl//absl/strings",
+        "@eigen_archive//:eigen3",
+        "@local_config_cuda//cuda:cuda_headers",
+        "@tsl//tsl/platform:test",
+        "@tsl//tsl/platform:test_benchmark",
+        "@tsl//tsl/platform:test_main",
+    ],
+)
+
+xla_cc_test(
+    name = "topk_test",
+    srcs = if_cuda_is_configured(["topk_test.cc"]),
+    tags = tf_cuda_tests_tags(),
+    deps = [
+        ":topk",
+        "//xla:error_spec",
+        "//xla:shape_util",
+        "//xla:status",
+        "//xla:statusor",
+        "//xla:types",
+        "//xla/hlo/ir:hlo",
+        "//xla/service:gpu_plugin",
+        "//xla/service:hlo_pass",
+        "//xla/service:platform_util",
+        "//xla/service:topk_rewriter",
+        "//xla/service/gpu:topk_specializer",
+        "//xla/tests:hlo_test_base",
+        "//xla/tests:verified_hlo_module",
+        "//xla/tests:xla_internal_test_main",  # fixdeps: keep
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/strings",
+        "@tsl//tsl/platform:statusor",
+        "@tsl//tsl/platform:test_main",
+    ],
+)
+
+cc_library(
+    name = "topk",
+    srcs = if_cuda_is_configured(
+        ["topk.cc"],
+        ["topk_no_cuda.cc"],
+    ),
+    hdrs = ["topk.h"],
+    deps = if_cuda_is_configured([":topk_kernel"]) + [
+        ":support",
+        "//xla:executable_run_options",
+        "//xla:shape_util",
+        "//xla:status",
+        "//xla:statusor",
+        "//xla:types",
+        "//xla:xla_data_proto_cc",
+        "//xla:xla_proto_cc",
+        "//xla/hlo/ir:hlo",
+        "//xla/mlir/runtime/transforms:custom_call_encoding",
+        "//xla/runtime:custom_call",
+        "//xla/runtime:custom_call_registry",
+        "//xla/runtime:executable",
+        "//xla/runtime:state",
+        "//xla/runtime/ffi:ffi_api",
+        "//xla/runtime/ffi:ffi_c_api_hdrs",
+        "//xla/service:executable",
+        "//xla/service:hlo_pass",
+        "//xla/service:tuple_util",
+        "//xla/stream_executor/gpu:gpu_stream_header",
+        "//xla/stream_executor/gpu:gpu_types_header",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@tsl//tsl/platform:statusor",
+    ],
+)
+
+cc_library(
     name = "gemm",
     srcs = ["gemm.cc"],
     hdrs = ["gemm.h"],
     deps = [
         ":support",
-        "@com_google_absl//absl/container:node_hash_map",
         "//xla:status",
         "//xla:xla_proto_cc",
         "//xla/runtime:custom_call",
@@ -184,6 +320,7 @@ cc_library(
         "//xla/service/gpu:non_atomically_upgradeable_rw_lock",
         "//xla/stream_executor:blas",
         "//xla/stream_executor:device_memory",
+        "@com_google_absl//absl/container:node_hash_map",
     ] + if_cuda_is_configured([
         "//xla/service/gpu:gemm_algorithm_picker",
         "//xla/stream_executor/gpu:redzone_allocator",
@@ -195,12 +332,11 @@ cc_library(
     srcs = ["graph_launch.cc"],
     hdrs = ["graph_launch.h"],
     deps = [
+        ":concurrent_region",
         ":conv",
         ":gemm",
         ":kernel_launch",
         ":support",
-        "@com_google_absl//absl/container:node_hash_map",
-        "@com_google_absl//absl/synchronization",
         "//xla:types",
         "//xla/runtime:custom_call",
         "//xla/runtime:custom_call_registry",
@@ -209,9 +345,29 @@ cc_library(
         "//xla/service:executable",
         "//xla/service/gpu:non_atomically_upgradeable_rw_lock",
         "//xla/stream_executor",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@tsl//tsl/profiler/lib:scoped_annotation_stack",
     ] + if_cuda_is_configured([
         "//xla/stream_executor/cuda:cuda_graph",
     ]),
+)
+
+cc_library(
+    name = "concurrent_region",
+    srcs = ["concurrent_region.cc"],
+    hdrs = ["concurrent_region.h"],
+    deps = [
+        ":support",
+        "//xla/runtime:custom_call",
+        "//xla/runtime:custom_call_registry",
+        "//xla/runtime:executable",
+        "//xla/service:executable",
+        "//xla/service:stream_pool",
+        "//xla/stream_executor",
+        "@tsl//tsl/platform:statusor",
+    ],
 )
 
 cc_library(
@@ -233,6 +389,7 @@ cc_library(
     srcs = ["kernel_launch.cc"],
     hdrs = ["kernel_launch.h"],
     deps = [
+        ":concurrent_region",
         ":support",
         "//xla:types",
         "//xla/runtime:custom_call",
@@ -245,7 +402,9 @@ cc_library(
         "//xla/stream_executor",
         "@com_google_absl//absl/container:node_hash_map",
         "@com_google_absl//absl/synchronization",
-    ],
+    ] + if_cuda_is_configured([
+        "//xla/stream_executor/cuda:cuda_graph",
+    ]),
 )
 
 cc_library(
@@ -299,6 +458,7 @@ cc_library(
 
 cc_library(
     name = "support",
+    srcs = ["support.cc"],
     hdrs = ["support.h"],
     deps = [
         "//xla:shape_util",
@@ -307,7 +467,9 @@ cc_library(
         "//xla/service/gpu:matmul_utils",
         "//xla/stream_executor:blas",
         "//xla/stream_executor:device_memory",
+        "@com_google_absl//absl/strings",
         "@llvm-project//llvm:Support",
+        "@tsl//tsl/profiler/lib:scoped_annotation_stack",
     ],
 )
 

@@ -13,20 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "llvm/Target/TargetMachine.h"
-#include "xla/service/gpu/gpu_compiler.h"
-#include "xla/service/gpu/gpu_device_info.h"
-#include "xla/service/gpu/llvm_gpu_backend/gpu_backend_lib.h"
-#if GOOGLE_CUDA
-#include "xla/service/gpu/nvptx_compiler.h"
-#endif
 #include "xla/hlo/ir/hlo_module.h"
+#include "xla/service/gpu/compile_module_to_llvm_ir.h"
+#include "xla/service/gpu/gpu_device_info_for_tests.h"
+#include "xla/service/gpu/llvm_gpu_backend/gpu_backend_lib.h"
 #include "xla/service/gpu/target_constants.h"
 #include "xla/status.h"
 #include "xla/stream_executor/cuda/cuda_platform_id.h"
 #include "xla/tools/hlo_module_loader.h"
 #include "tsl/platform/init_main.h"
-#include "tsl/platform/logging.h"
 #include "tsl/util/command_line_flags.h"
 
 const char* const kUsage = R"(
@@ -50,18 +45,8 @@ xla::Status CompileAndPrintLlvmIr(const std::string& hlo_text,
       std::unique_ptr<xla::HloModule> hlo_module,
       xla::LoadModuleFromData(/*data=*/hlo_text, /*format=*/"hlo"));
   llvm::LLVMContext llvm_context;
-  // For now we pretend we're compiling for V100.  This can be generalized
-  // later.
-
-  xla::gpu::GpuDeviceInfo gpu_device_info{};
-  gpu_device_info.threads_per_block_limit = 1024;
-  gpu_device_info.threads_per_warp = 32;
-  gpu_device_info.shared_memory_per_block = 49152;
-  gpu_device_info.core_count = 80;
-  gpu_device_info.threads_per_core_limit = 2048;
-  gpu_device_info.block_dim_limit_x = 2147483647;
-  gpu_device_info.block_dim_limit_y = 65535;
-  gpu_device_info.block_dim_limit_z = 65535;
+  xla::gpu::GpuDeviceInfo gpu_device_info =
+      xla::gpu::TestGpuDeviceInfo::RTXA6000DeviceInfo();
 
   tensorflow::se::CudaComputeCapability cuda_compute_capability;
   cuda_compute_capability.major = sm / 10;
@@ -92,7 +77,8 @@ xla::Status CompileAndPrintLlvmIr(const std::string& hlo_text,
             llvm_module.get(), cuda_compute_capability, hlo_module->config()));
     std::cout << ptx << std::endl;
 #else
-    return {tsl::error::UNIMPLEMENTED, "Feature not yet implemented in ROCm"};
+    return {absl::StatusCode::kUnimplemented,
+            "Feature not yet implemented in ROCm"};
 #endif
   }
   return xla::OkStatus();

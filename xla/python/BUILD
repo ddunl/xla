@@ -15,6 +15,7 @@ load(
     "if_cuda_or_rocm",
 )
 load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda")
+load("@local_config_rocm//rocm:build_defs.bzl", "if_rocm")
 load("@tsl//tsl:tsl.default.bzl", "tsl_pybind_extension")
 load("//xla:pytype.default.bzl", "pytype_library")
 
@@ -83,7 +84,10 @@ py_test(
     main = "xla_client_test.py",
     python_version = "PY3",
     srcs_version = "PY3",
-    tags = ["no_oss"],  # TODO(phawkins): This test passes, but requires --config=monolithic.
+    tags = [
+        "no_oss",
+        "not_run:arm",
+    ],  # TODO(phawkins): This test passes, but requires --config=monolithic.
     deps = [
         ":custom_call_for_test",
         ":xla_client",
@@ -146,7 +150,32 @@ cc_library(
         "//xla:status",
         "//xla:statusor",
         "@pybind11",
+        "@tsl//tsl/platform:macros",
     ],
+)
+
+tsl_pybind_extension(
+    name = "status_casters_ext",
+    srcs = ["status_casters_ext.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":exceptions",
+        ":status_casters",
+        "@pybind11",
+    ],
+)
+
+py_test(
+    name = "status_casters_test",
+    srcs = ["status_casters_test.py"],
+    main = "status_casters_test.py",
+    python_version = "PY3",
+    srcs_version = "PY3",
+    tags = ["no_oss"],
+    deps = [
+        ":status_casters_ext",
+        "@absl_py//absl/testing:absltest",
+    ] + xla_py_test_deps(),
 )
 
 cc_library(
@@ -176,7 +205,6 @@ cc_library(
     visibility = [":friends"],
     deps = [
         ":exceptions",
-        ":status_casters",
         "//xla:literal",
         "//xla:shape_util",
         "//xla:status",
@@ -280,7 +308,9 @@ cc_library(
         "py_array.cc",
         "py_buffer.cc",
         "py_client.cc",
+        "py_compile_only_client.cc",
         "py_executable.cc",
+        "py_host_callback.cc",
         "py_values.cc",
         "sharding.cc",
     ] + if_cuda_or_rocm([
@@ -291,7 +321,9 @@ cc_library(
         "py_array.h",
         "py_buffer.h",
         "py_client.h",
+        "py_compile_only_client.h",
         "py_executable.h",
+        "py_host_callback.h",
         "py_values.h",
         "sharded_device_array.h",
         "sharding.h",
@@ -303,7 +335,9 @@ cc_library(
         "-fexceptions",
         "-fno-strict-aliasing",
     ],
-    defines = if_cuda(["GOOGLE_CUDA=1"]),
+    defines = if_cuda(["GOOGLE_CUDA=1"]) + if_rocm([
+        "TENSORFLOW_USE_ROCM=1",
+    ]),
     features = ["-use_header_modules"],
     deps = [
         ":exceptions",
@@ -315,6 +349,27 @@ cc_library(
         ":transfer_guard_lib",
         ":types",
         ":util",
+        "//xla:comparison_util",
+        "//xla:shape_util",
+        "//xla:statusor",
+        "//xla:types",
+        "//xla:util",
+        "//xla:xla_data_proto_cc",
+        "//xla/client:xla_builder",
+        "//xla/pjrt:host_callback",
+        "//xla/pjrt:lru_cache",
+        "//xla/pjrt:mlir_to_hlo",
+        "//xla/pjrt:pjrt_client",
+        "//xla/pjrt:pjrt_compiler",
+        "//xla/pjrt:pjrt_future",
+        "//xla/pjrt:pjrt_stream_executor_client",
+        "//xla/pjrt:transpose",
+        "//xla/python/ifrt",
+        "//xla/python/pjrt_ifrt",
+        "//xla/python/pjrt_ifrt:xla_ifrt",
+        "//xla/service:custom_call_status",
+        "//xla/service:custom_call_target_registry",
+        "//xla/service:platform_util",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -325,24 +380,6 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@pybind11",
         "@pybind11_abseil//pybind11_abseil:absl_casters",
-        "//xla:comparison_util",
-        "//xla:statusor",
-        "//xla:types",
-        "//xla:util",
-        "//xla:xla_data_proto_cc",
-        "//xla/client:xla_builder",
-        "//xla/pjrt:host_callback",
-        "//xla/pjrt:lru_cache",
-        "//xla/pjrt:mlir_to_hlo",
-        "//xla/pjrt:pjrt_client",
-        "//xla/pjrt:pjrt_future",
-        "//xla/pjrt:pjrt_stream_executor_client",
-        "//xla/pjrt:transpose",
-        "//xla/python/ifrt",
-        "//xla/python/pjrt_ifrt",
-        "//xla/service:custom_call_status",
-        "//xla/service:custom_call_target_registry",
-        "//xla/service:platform_util",
         "@tsl//tsl/platform:errors",
         "@tsl//tsl/platform:fingerprint",
         "@tsl//tsl/platform:float8",
@@ -351,6 +388,8 @@ cc_library(
         "@tsl//tsl/python/lib/core:numpy",
     ] + if_cuda([
         "@local_config_cuda//cuda:cuda_headers",
+    ]) + if_rocm([
+        "@local_config_rocm//rocm:rocm_headers",
     ]),
 )
 
@@ -399,6 +438,7 @@ cc_library(
         ":python_ref_manager",
         ":python_utils",
         ":pytree",
+        ":status_casters",
         ":types",
         ":util",
         "//xla:shape_util",
@@ -423,6 +463,19 @@ cc_library(
 )
 
 cc_library(
+    name = "inspect_sharding",
+    srcs = ["inspect_sharding.cc"],
+    hdrs = ["inspect_sharding.h"],
+    deps = [
+        "//xla/hlo/ir:hlo",
+        "//xla/service:custom_call_sharding_helper",
+        "//xla/service/spmd:spmd_partitioner",
+    ],
+    # Always register 'InspectSharding' custom partitioning handler.
+    alwayslink = 1,
+)
+
+cc_library(
     name = "custom_call_sharding",
     srcs = ["custom_call_sharding.cc"],
     hdrs = ["custom_call_sharding.h"],
@@ -434,6 +487,7 @@ cc_library(
     features = ["-use_header_modules"],
     visibility = ["//visibility:private"],
     deps = [
+        ":inspect_sharding",
         ":status_casters",
         "//xla/client:xla_computation",
         "//xla/hlo/ir:hlo",
@@ -457,6 +511,7 @@ cc_library(
     ],
     features = ["-use_header_modules"],
     deps = [
+        ":status_casters",
         ":types",
         "//xla:xla_data_proto_cc",
         "//xla/client:xla_builder",
@@ -538,6 +593,7 @@ cc_library(
         ":jax_jit",
         ":py_client",
         ":python_utils",
+        ":status_casters",
         ":types",
         ":util",
         "//xla:xla_data_proto_cc",
@@ -593,6 +649,7 @@ cc_library(
     deps = [
         ":outfeed_receiver",
         ":py_client",
+        ":status_casters",
         ":types",
         "//xla/client:executable_build_options",
         "//xla/client:xla_builder",
@@ -639,6 +696,8 @@ cc_library(
     ],
     features = ["-use_header_modules"],
     deps = [
+        ":refine_polymorphic_shapes",
+        ":status_casters",
         ":types",
         "//xla:status",
         "//xla/client:xla_computation",
@@ -663,6 +722,29 @@ cc_library(
 )
 
 cc_library(
+    name = "refine_polymorphic_shapes",
+    srcs = ["refine_polymorphic_shapes.cc"],
+    hdrs = ["refine_polymorphic_shapes.h"],
+    deps = [
+        "//xla:status",
+        "//xla/mlir/utils:error_util",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:BytecodeWriter",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Parser",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
+        "@stablehlo//:chlo_ops",
+        "@stablehlo//:stablehlo_ops",
+        "@stablehlo//:stablehlo_passes",
+    ],
+)
+
+cc_library(
     name = "profiler",
     srcs = ["profiler.cc"],
     hdrs = ["profiler.h"],
@@ -674,6 +756,7 @@ cc_library(
     ],
     features = ["-use_header_modules"],
     deps = [
+        ":status_casters",
         ":types",
         "//xla:status",
         "//xla/backends/profiler:profiler_backends",
@@ -699,6 +782,7 @@ cc_library(
     features = ["-use_header_modules"],
     visibility = [":friends"],
     deps = [
+        ":status_casters",
         "//xla:status",
         "//xla:util",
         "@com_google_absl//absl/base:core_headers",
@@ -759,7 +843,9 @@ cc_library(
     features = ["-use_header_modules"],
     deps = [
         ":py_client",
+        ":status_casters",
         ":types",
+        "//xla:array",
         "//xla:debug_options_flags",
         "//xla:shape_util",
         "//xla:statusor",
@@ -785,6 +871,7 @@ cc_library(
         "//xla/service:platform_util",
         "//xla/service:tuple_simplifier",
         "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
         "@pybind11",
@@ -878,6 +965,7 @@ tsl_pybind_extension(
     }),
     linkopts = select({
         ":use_jax_cuda_pip_rpaths": [
+            "-Wl,-rpath,$$ORIGIN/../nvidia/cuda_cupti/lib",
             "-Wl,-rpath,$$ORIGIN/../nvidia/cuda_runtime/lib",
             "-Wl,-rpath,$$ORIGIN/../nvidia/cublas/lib",
             "-Wl,-rpath,$$ORIGIN/../nvidia/cufft/lib",
@@ -905,17 +993,14 @@ tsl_pybind_extension(
         ":py_client",
         ":python_ref_manager",
         ":pytree",
+        ":refine_polymorphic_shapes",
+        ":status_casters",
         ":traceback",
         ":transfer_guard_lib",
         ":types",
         ":util",
         ":weakref_lru_cache",
         ":xla_compiler",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/types:span",
-        "@pybind11",
-        "@local_config_python//:python_headers",  # buildcleaner: keep
         "//xla:literal",
         "//xla:shape_util",
         "//xla:status",
@@ -925,6 +1010,7 @@ tsl_pybind_extension(
         "//xla/pjrt:interpreter_device",
         "//xla/pjrt:mlir_to_hlo",
         "//xla/pjrt:pjrt_api",
+        "//xla/pjrt:pjrt_c_api_client",
         "//xla/pjrt:pjrt_client",
         "//xla/pjrt:pjrt_compiler",
         "//xla/pjrt:tfrt_cpu_pjrt_client",
@@ -933,6 +1019,11 @@ tsl_pybind_extension(
         "//xla/pjrt/distributed:service",
         "//xla/python/ifrt",
         "//xla/python/pjrt_ifrt",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@local_config_python//:python_headers",  # buildcleaner: keep
+        "@pybind11",
         "@tsl//tsl/distributed_runtime/preemption:preemption_sync_manager",
         "@tsl//tsl/platform:logging",
         "@tsl//tsl/python/lib/core:numpy",
@@ -948,8 +1039,8 @@ tsl_pybind_extension(
         "//conditions:default": [],
     }) + select({
         ":tpu_enabled": [
-            "//xla/pjrt:pjrt_c_api_client",
             "//xla/pjrt:tpu_client",
+            "//xla/stream_executor/tpu:tpu_initializer_helper",
         ],
         "//conditions:default": [],
     }) + select({

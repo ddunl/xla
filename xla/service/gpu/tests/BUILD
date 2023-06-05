@@ -191,8 +191,8 @@ xla_cc_test(
     tags = tf_cuda_tests_tags(),
     deps = [
         ":gpu_codegen_test",
+        "//xla/hlo/utils:hlo_query",
         "//xla/service:hlo_module_config",
-        "//xla/service:hlo_query",
         "@tsl//tsl/lib/core:status_test_util",
         "@tsl//tsl/platform:test_main",
     ],
@@ -787,14 +787,15 @@ build_test(
 
 xla_cc_binary(
     name = "hlo_to_llvm_ir",
+    testonly = True,
     srcs = ["hlo_to_llvm_ir.cc"],
     copts = if_cuda_is_configured(["-DGOOGLE_CUDA=1"]),
     deps = [
-        "@llvm-project//llvm:Target",
         "//xla:status",
         "//xla/hlo/ir:hlo",
+        "//xla/service/gpu:compile_module_to_llvm_ir",
         "//xla/service/gpu:gpu_compiler",
-        "//xla/service/gpu:gpu_device_info",
+        "//xla/service/gpu:gpu_device_info_for_tests",
         "//xla/service/gpu:target_constants",
         "//xla/service/gpu/llvm_gpu_backend",
         "//xla/stream_executor:device_description",
@@ -802,7 +803,9 @@ xla_cc_binary(
         "//xla/stream_executor:dnn",
         "//xla/stream_executor:stream_executor_impl",
         "//xla/stream_executor/cuda:cuda_platform_id",
+        "//xla/stream_executor/host:host_platform",
         "//xla/tools:hlo_module_loader",
+        "@llvm-project//llvm:Target",
         "@tsl//tsl/platform:logging",
         "@tsl//tsl/platform:platform_port",
         "@tsl//tsl/util:command_line_flags",
@@ -810,7 +813,10 @@ xla_cc_binary(
         "//xla/service/gpu:nvptx_compiler_impl",
         "//xla/stream_executor/cuda:cublas_plugin",
     ]) + if_rocm_is_configured([
+        "@tsl//tsl/platform:rocm_rocdl_path",
         "//xla/service/gpu:amdgpu_compiler_impl",
+        "//xla/stream_executor/rocm:rocblas_plugin",
+        "//xla/stream_executor/rocm:rocm_helpers",
     ]),
 )
 
@@ -867,10 +873,11 @@ xla_cc_test(
     srcs = if_cuda_is_configured(["dynamic_shared_memory_test.cc"]),
     tags = tf_cuda_tests_tags(),
     deps = [
-        "@com_google_absl//absl/strings",
         "//xla:shape_util",
         "//xla:types",
         "//xla:xla_proto_cc",
+        "@com_google_absl//absl/strings",
+        "@tsl//tsl/platform:status",
         "@tsl//tsl/platform:statusor",
         "@tsl//tsl/platform:test",
         "@tsl//tsl/platform:test_main",

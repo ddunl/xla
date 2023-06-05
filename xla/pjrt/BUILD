@@ -167,6 +167,8 @@ cc_library(
     hdrs = ["pjrt_client.h"],
     visibility = ["//xla:friends"],
     deps = [
+        ":pjrt_compiler",
+        ":pjrt_device_description",
         ":pjrt_executable",
         ":pjrt_future",
         "//xla:literal",
@@ -181,6 +183,7 @@ cc_library(
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
@@ -225,6 +228,7 @@ cc_library(
     deps = [
         "//xla:statusor",
         "//xla:util",
+        "//xla:xla_data_proto_cc",
         "//xla/client:executable_build_options",
         "//xla/hlo/ir:hlo",
         "//xla/service:hlo_proto_cc",
@@ -247,17 +251,28 @@ xla_cc_test(
 )
 
 cc_library(
+    name = "pjrt_device_description",
+    hdrs = ["pjrt_device_description.h"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
+cc_library(
     name = "pjrt_compiler",
     srcs = ["pjrt_compiler.cc"],
     hdrs = ["pjrt_compiler.h"],
     visibility = [":friends"],
     deps = [
-        ":pjrt_client",
+        ":pjrt_device_description",
         ":pjrt_executable",
+        "//xla/client:xla_computation",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
         "@llvm-project//mlir:IR",
+        "@tsl//tsl/platform:fingerprint",
     ],
 )
 
@@ -508,6 +523,41 @@ xla_cc_test(
 )
 
 cc_library(
+    name = "abstract_tfrt_cpu_buffer",
+    srcs = ["abstract_tfrt_cpu_buffer.cc"],
+    hdrs = ["abstract_tfrt_cpu_buffer.h"],
+    visibility = [
+        "//xla:friends",
+    ],
+    deps = [
+        ":pjrt_client",
+        ":pjrt_future",
+        ":tracked_tfrt_cpu_device_buffer",
+        ":transpose",
+        ":utils",
+        "//xla:shape_util",
+        "//xla:status",
+        "//xla:statusor",
+        "//xla:util",
+        "//xla/runtime:cpu_event",
+        "//xla/service:shaped_buffer",
+        "//xla/service/cpu:cpu_executable",
+        "//xla/service/cpu:cpu_xfeed",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@tf_runtime//:async_value",
+        "@tf_runtime//:hostcontext",
+        "@tsl//tsl/platform:statusor",
+        "@tsl//tsl/profiler/lib:connected_traceme",
+    ],
+)
+
+cc_library(
     name = "tfrt_cpu_pjrt_client",
     srcs = ["tfrt_cpu_pjrt_client.cc"],
     hdrs = ["tfrt_cpu_pjrt_client.h"],
@@ -515,6 +565,8 @@ cc_library(
         "//xla:friends",
     ],
     deps = [
+        ":abstract_tfrt_cpu_buffer",
+        ":compile_options_proto_cc",
         ":mlir_to_hlo",
         ":pjrt_client",
         ":pjrt_executable",
@@ -523,18 +575,23 @@ cc_library(
         ":tracked_tfrt_cpu_device_buffer",
         ":transpose",
         ":utils",
-        ":worker_thread",
+        "//xla:array",
+        "//xla:debug_options_flags",
+        "//xla:executable_run_options",
         "//xla:literal",
         "//xla:literal_util",
         "//xla:shape_util",
+        "//xla:status",
         "//xla:statusor",
         "//xla:util",
         "//xla:xla_data_proto_cc",
         "//xla/client:executable_build_options",
         "//xla/client:xla_computation",
+        "//xla/hlo/ir:hlo",
         "//xla/runtime:cpu_event",
         "//xla/service:buffer_assignment",
         "//xla/service:computation_placer_hdr",
+        "//xla/service:custom_call_status_public_headers",
         "//xla/service:dump",
         "//xla/service:executable",
         "//xla/service:hlo_cost_analysis",
@@ -544,18 +601,28 @@ cc_library(
         "//xla/service/cpu:cpu_executable",
         "//xla/service/cpu:cpu_xfeed",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:dynamic_annotations",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
         "@eigen_archive//:eigen3",  # TODO(zhangqiaorjc): Remove if use TFRT threadpool.
+        "@llvm-project//mlir:IR",
         "@tf_runtime//:hostcontext",
         "@tf_runtime//:support",
+        "@tsl//tsl/platform:casts",
         "@tsl//tsl/platform:denormal",
+        "@tsl//tsl/platform:env",
         "@tsl//tsl/platform:errors",
+        "@tsl//tsl/platform:fingerprint",
         "@tsl//tsl/platform:setround",
+        "@tsl//tsl/platform:statusor",
         "@tsl//tsl/profiler/lib:connected_traceme",
-        "@tsl//tsl/profiler/lib:traceme",
     ],
 )
 
@@ -566,11 +633,19 @@ xla_cc_test(
         ":tfrt_cpu_pjrt_client",
         "//xla:literal",
         "//xla:literal_util",
+        "//xla:shape_util",
+        "//xla:status",
+        "//xla:util",
         "//xla/service:custom_call_status_public_headers",
         "//xla/service:custom_call_target_registry",
         "//xla/service:hlo_parser",
+        "//xla/tests:test_utils",
         "@com_google_googletest//:gtest_main",
+        "@tsl//tsl/lib/core:status_test_util",
         "@tsl//tsl/platform:env",
+        "@tsl//tsl/platform:errors",
+        "@tsl//tsl/platform:status_matchers",
+        "@tsl//tsl/platform:statusor",
         "@tsl//tsl/platform:test",
     ],
 )
@@ -659,8 +734,6 @@ cc_library(
         "//xla/pjrt/c:pjrt_c_api_hdrs",
         "//xla/pjrt/c:pjrt_c_api_helpers",
         "//xla/service:hlo_proto_cc",
-        "//xla/stream_executor/tpu:c_api_conversions",  # TODO(b/238999986): Remove this.
-        "//xla/stream_executor/tpu:tpu_initializer_helper",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/strings",
         "@llvm-project//mlir:BytecodeWriter",
@@ -677,6 +750,7 @@ cc_library(
         ":pjrt_client",
         ":pjrt_future",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@tsl//tsl/platform:errors",
     ],
 )
 
