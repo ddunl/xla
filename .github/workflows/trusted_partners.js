@@ -53,7 +53,7 @@ const get_email_domain = async ({github, username}) => {
 const filter_action = async ({github, context, domain}) => {
   const labels = ['kokoro:force-run'];
 
-  let assignees = [];
+  let assignees = ['xla-rotation'];
   const title =
       context.payload.pull_request && context.payload.pull_request.title;
   const lowercased_title = (title || '').toLowerCase();
@@ -93,10 +93,9 @@ const filter_action = async ({github, context, domain}) => {
     assignees.push('rino20', 'yyoon', 'lenscloth');
   }
 
-  // Add default reviewers if none were added or add kokoro label.
-  if (assignees.length == 0) {
-    assignees.push('xla-rotation', 'tpopp', 'ddunl');
-  } else {
+  // Add kokoro label if this was a trusted email that has automatic reviewers
+  // assigned.
+  if (assignees.length != 0) {
     const resp_label = await github.rest.issues.addLabels({
       issue_number: context.issue.number,
       owner: context.repo.owner,

@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-"""Provides a Python interface to various parts of the GitHub API."""
-import json
-import types
+"""Provides a Python interface to various parts of the GitHub API.
+
+NOTE: not using PyGithub https://github.com/PyGithub/PyGithub as it doesn't
+have full API coverage and it's easy enough to use the endpoints we need like
+this (with zero dependencies as a bonus!)
+"""
 from typing import Any, Optional
+import urllib
 
 import requests
 
@@ -23,21 +27,21 @@ import requests
 class GitHubAPI:
   """Wraps the GitHub REST API."""
 
-  _BASE_URL = "https://api.github.com"
-
   def __init__(self, token: Optional[str] = None):
     self._session = requests.Session()
     self._session.headers["Accept"] = "application/vnd.github+json"
     if token:
       self._session.headers["Authorization"] = f"token {token}"
 
-
-  def _make_request(self, verb: str, endpoint: str, **kwargs: dict[str, Any]) -> requests.Response:
+  def _make_request(
+      self, verb: str, endpoint: str, **kwargs: dict[str, Any]
+  ) -> requests.Response:
     """Helper method to make a request and raise an HTTPError if one occurred.
 
     Arguments:
       verb: The HTTP verb to use
       endpoint: The endpoint to make the request to
+      **kwargs: The json that will be sent as the body of the request.
 
     Returns:
       a requests.Response object containing the response from the API.
@@ -45,18 +49,23 @@ class GitHubAPI:
     Raises:
       requests.exceptions.HTTPError
     """
-    res = self._session.request(verb, self._BASE_URL + endpoint, json=kwargs)
+    res = self._session.request(
+        verb,
+        urllib.parse.urljoin("https://api.github.com", endpoint),
+        json=kwargs,
+    )
     res.raise_for_status()
     return res.json()
 
-
   def get_commit(self, repo: str, commit_id: str) -> requests.Response:
     """Gets a commit by it's SHA-1 hash.
-    https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#get-a-commit
+
+    https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#get-a-
+    commit
 
     Arguments:
       repo: a string of the form `owner/repo_name`, e.g. openxla/xla.
-      commit_hash: a string describing the commit to get, e.g. `deadbeef` or
+      commit_id: a string describing the commit to get, e.g. `deadbeef` or
         `HEAD`.
 
     Returns:
@@ -65,13 +74,51 @@ class GitHubAPI:
     Raises:
       requests.exceptions.HTTPError
     """
-    endpoint = f"/repos/{repo}/commits/{commit_id}"
+    endpoint = f"repos/{repo}/commits/{commit_id}"
     return self._make_request("GET", endpoint)
 
+  def get_issue(self, repo: str, issue_number: int) -> requests.Response:
+    """Gets an issue by number.
 
-  def write_issue_comment(self, repo: str, issue_number: int, body: str) -> requests.Response:
+    https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#get-an-issue
+
+    Arguments:
+      repo: a string of the form `owner/repo_name`, e.g. openxla/xla.
+      issue_number: the number of the issue to get.
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
+    endpoint = f"repos/{repo}/issues/{issue_number}"
+    return self._make_request("GET", endpoint)
+
+  def get_user(self, username: str) -> requests.Response:
+    """Gets information about a user.
+
+    https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-a-user
+
+    Arguments:
+      username: the username to get information about.
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
+    endpoint = f"users/{username}"
+    return self._make_request("GET", endpoint)
+
+  def write_issue_comment(
+      self, repo: str, issue_number: int, body: str
+  ) -> requests.Response:
     """Writes a comment on an issue (or PR).
-    https://docs.github.com/en/rest/issues/comments?apiVersion=2022-11-28#create-an-issue-comment
+
+    https://docs.github.com/en/rest/issues/comments?apiVersion=2022-11-
+    28#create-an-issue-comment
 
     Arguments:
       repo: a string of the form `owner/repo_name`, e.g. openxla/xla
@@ -84,13 +131,16 @@ class GitHubAPI:
     Raises:
       requests.exceptions.HTTPError
     """
-    endpoint = f"/repos/{repo}/issues/{issue_number}/comments"
+    endpoint = f"repos/{repo}/issues/{issue_number}/comments"
     return self._make_request("POST", endpoint, body=body)
 
-
-  def set_issue_status(self, repo: str, issue_number: int, status: str) -> requests.Response:
+  def set_issue_status(
+      self, repo: str, issue_number: int, status: str
+  ) -> requests.Response:
     """Sets the status of an issue (or PR).
-    https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#update-an-issue
+
+    https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#update-
+    an-issue
 
     Arguments:
       repo: a string of the form `owner/repo_name`, e.g. openxla/xla
@@ -103,5 +153,47 @@ class GitHubAPI:
     Raises:
       requests.exceptions.HTTPError
     """
-    endpoint = f"/repos/{repo}/issues/{issue_number}"
+    endpoint = f"repos/{repo}/issues/{issue_number}"
     return self._make_request("POST", endpoint, status=status)
+
+  def add_issue_assignees(
+      self, repo: str, issue_number: int, assignees: list[str]
+  ) -> requests.Response:
+    """Adds assignees to an issue (or PR).
+
+    https://docs.github.com/en/rest/issues/assignees?apiVersion=2022-11-28#add-assignees-to-an-issue
+
+    Arguments:
+      repo: a string of the form `owner/repo_name`, e.g. openxla/xla
+      issue_number: the issue (or PR) to set the status of
+      assignees: the assignees to add to the issue
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
+    endpoint = f"repos/{repo}/issues/{issue_number}/assignees"
+    return self._make_request("POST", endpoint, assignees=assignees)
+
+  def add_issue_labels(
+      self, repo: str, issue_number: int, labels: list[str]
+  ) -> requests.Response:
+    """Adds labels to an issue (or PR).
+
+    https://docs.github.com/en/actions/managing-issues-and-pull-requests/adding-labels-to-issues
+
+    Arguments:
+      repo: a string of the form `owner/repo_name`, e.g. openxla/xla
+      issue_number: the issue (or PR) to set the status of
+      labels: the labels to add to the issue
+
+    Returns:
+      a requests.Response object containing the response from the API.
+
+    Raises:
+      requests.exceptions.HTTPError
+    """
+    endpoint = f"repos/{repo}/issues/{issue_number}/labels"
+    return self._make_request("POST", endpoint, labels=labels)

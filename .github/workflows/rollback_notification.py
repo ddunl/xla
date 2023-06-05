@@ -13,12 +13,9 @@
 # limitations under the License.
 # ============================================================================
 """Notifies PR authors of rollbacks on committed PRs."""
-import itertools
-import json
 import os
 import re
-import subprocess
-from typing import Any, Generator, Sequence
+from typing import Generator, Sequence
 
 import github_api
 
@@ -32,7 +29,7 @@ def get_reverted_commit_hashes(message: str) -> list[str]:
   Returns:
     A list of SHAs as strings.
   """
-  print(f"Head commit message: {message}")
+  print("Head commit message:", message, sep="\n")
   regex = re.compile(r"reverts ([0-9a-f]{5,40})", flags=re.IGNORECASE)
   commit_hashes = regex.findall(message)
   print(f"Found commit hashes reverted in this commit: {commit_hashes}")
@@ -40,12 +37,13 @@ def get_reverted_commit_hashes(message: str) -> list[str]:
 
 
 def get_associated_prs(
-    api,
+    api: github_api.GitHubAPI,
     commit_hashes: Sequence[str],
-) -> Generator[tuple[str, str], None, None]:
+) -> Generator[int, None, None]:
   """Finds PRs associated with commits.
 
   Arguments:
+    api: GitHubAPI object which will be used to make requests
     commit_hashes: A sequence of SHAs which may have PRs associated with them
 
   Yields:
@@ -54,11 +52,12 @@ def get_associated_prs(
   regex = re.compile(r"PR #(\d+)")
   for commit_hash in commit_hashes:
     response = api.get_commit("openxla/xla", commit_hash)
-    message = response.json()["commit"]["message"]
+    message = response["commit"]["message"]
     if maybe_match := regex.match(message):
       pr_number = maybe_match.group(1)
-      print("Found PR #{pr_number} associated with commit hash {commit_hash}")
-      yield commit_hash, pr_number
+      print(f"Found PR #{pr_number} associated with commit hash {commit_hash}")
+      yield int(pr_number)
+  print(f"Didn't find any PRs associated with commit hashes: {commit_hashes}")
 
 
 def main():
@@ -66,10 +65,13 @@ def main():
   head_commit = api.get_commit("openxla/xla", "HEAD")
   commit_hashes = get_reverted_commit_hashes(head_commit["commit"]["message"])
 
-  for commit_hash, pr_number in get_associated_prs(api, commit_hashes):
-    api.write_issue_comment("openxla/xla", pr_number, f"This PR was rolled back in {commit_hash}!")
+  for pr_number in get_associated_prs(api, commit_hashes):
+    sha = head_commit["sha"]
+    api.write_issue_comment(
+        "openxla/xla", pr_number, f"This PR was rolled back in {sha}!"
+    )
     api.set_issue_status("openxla/xla", pr_number, "open")
-    
+
 
 if __name__ == "__main__":
   main()
